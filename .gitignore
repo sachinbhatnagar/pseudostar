@@ -1,0 +1,10 @@
+/node_modules/
+# Fontshare permits app self-hosting, but not font redistribution in a repository.
+/code/public/fonts/*.woff
+/code/public/fonts/*.woff2
+/code/public/fonts/*.ttf
+/code/public/fonts/*.otf
+/code/public/fonts/*.zip
+
+# Local design review artifacts
+/.impeccable/

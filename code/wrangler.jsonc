@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pseudostar",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api", "/api/*"],
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pseudostar",
+      "database_id": "REPLACE_WITH_CONFIRMED_D1_ID",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "vars": {
+    "APP_ORIGIN": "https://REPLACE_WITH_WORKER_HOST",
+    "RESEND_FROM": "PseudoStar <REPLACE_WITH_VERIFIED_SENDER>",
+  },
+  "triggers": { "crons": ["17 3 * * *"] },
+  "observability": { "enabled": false },
+}

@@ -1,0 +1,261 @@
+@font-face {
+  font-family: Sentient;
+  src: url('/fonts/sentient-variable.woff2') format('woff2');
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  color: #283e30;
+  background: #edf1eb;
+  font-synthesis: none;
+  font-size: 14px;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+button:disabled {
+  cursor: default;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #547960;
+  outline-offset: 4px;
+}
+::selection {
+  background: #bcd1bd;
+  color: #1a3023;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button svg {
+  flex: none;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+}
+.brand {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+}
+.brand span {
+  font-family: Sentient, Georgia, serif;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -1px;
+}
+.lesson {
+  display: flex;
+  flex-direction: column;
+  background: #e4ebe0;
+}
+.lesson-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #50654e;
+}
+.difficulty {
+  font-weight: 700;
+  color: #304e34;
+}
+h1 {
+  font-family: Sentient, Georgia, serif;
+  font-weight: 500;
+  font-size: 37px;
+  line-height: 1.14;
+  letter-spacing: -1.2px;
+  margin: 27px 0 17px;
+}
+h2,
+h3,
+p {
+  margin: 0;
+}
+.intro {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #4d604f;
+}
+.lesson h2 {
+  font-size: 13px;
+  font-weight: 650;
+  margin-bottom: 10px;
+}
+.hint-area {
+  margin-top: 32px;
+}
+.hint-area p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #4b614d;
+}
+.hint-button {
+  border: 0;
+  padding: 11px 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+}
+.hint-button:hover {
+  color: #172b1c;
+}
+.hint-count {
+  font-size: 10px;
+  color: #596c59;
+}
+.palette-block {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  width: 100%;
+  padding: 12px 10px;
+  border: 0;
+  border-radius: 5px 10px 10px 5px;
+  text-align: left;
+}
+.palette-block:after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 16px;
+  width: 17px;
+  height: 5px;
+  border-radius: 0 0 4px 4px;
+  background: inherit;
+}
+.palette-block:hover {
+  filter: brightness(0.96);
+}
+.block-syntax {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.block-hint {
+  color: #465647;
+}
+.output {
+  background: #d2e3d3;
+}
+.input {
+  background: #e8d8d7;
+}
+.variable {
+  background: #e4e1cc;
+}
+.selection {
+  background: #e9d7c4;
+}
+.loop {
+  background: #d4e2e5;
+}
+.routine {
+  background: #d9dcd0;
+}
+.canvas-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #576b56;
+}
+.blocklySvg {
+  background: #f0f4ed !important;
+}
+.blocklyText {
+  fill: #283b2e !important;
+}
+.blocklyEditableText > rect {
+  fill: #fff !important;
+  fill-opacity: 0.55 !important;
+  stroke: transparent !important;
+  rx: 4px;
+}
+.blocklyEditableText:hover > rect {
+  fill-opacity: 0.9 !important;
+}
+.blocklySelected > .blocklyPath {
+  stroke: #385d42 !important;
+  stroke-width: 2px !important;
+}
+.blocklyPathLight,
+.blocklyPathDark {
+  display: none;
+}
+.blocklyHtmlInput {
+  color: #22392a !important;
+  font-family: 'SFMono-Regular', Consolas, monospace !important;
+}
+.blocklyWidgetDiv input {
+  caret-color: #2a5538;
+}
+.blocklyMainBackground {
+  stroke: none !important;
+}
+.workspace-status {
+  color: #586b56;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 41px;
+}
+.drag-preview {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  background: #344f39;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 5px;
+  font-family: monospace;
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .brand span {
+    font-size: 24px;
+  }
+  .lesson-top {
+    justify-content: flex-start;
+    gap: 15px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

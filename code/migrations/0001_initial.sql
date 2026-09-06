@@ -1,0 +1,11 @@
+PRAGMA foreign_keys = ON;
+CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS otp_challenges (id TEXT PRIMARY KEY, email TEXT NOT NULL, digest TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, consumed_at INTEGER, send_status TEXT NOT NULL CHECK(send_status IN ('pending','sent','failed')), claim TEXT);
+CREATE INDEX IF NOT EXISTS otp_email ON otp_challenges(email, created_at);
+CREATE INDEX IF NOT EXISTS otp_expiry ON otp_challenges(expires_at);
+CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS session_expiry ON sessions(expires_at);
+CREATE TABLE IF NOT EXISTS programs (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, title TEXT NOT NULL, problem_id TEXT, draft TEXT NOT NULL, last_valid_source TEXT, workspace TEXT, format_version INTEGER NOT NULL DEFAULT 1, revision INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, deleted_at INTEGER);
+CREATE INDEX IF NOT EXISTS programs_owner ON programs(owner_id, deleted_at, updated_at);
+CREATE TABLE IF NOT EXISTS progress (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, problem_id TEXT NOT NULL, content_version INTEGER NOT NULL, status TEXT NOT NULL CHECK(status IN ('started','passed')), highest_hint_viewed INTEGER NOT NULL DEFAULT 0, last_checked_at INTEGER, PRIMARY KEY(user_id, problem_id));
+CREATE TABLE IF NOT EXISTS rate_limits (identity TEXT PRIMARY KEY, window INTEGER NOT NULL, count INTEGER NOT NULL);

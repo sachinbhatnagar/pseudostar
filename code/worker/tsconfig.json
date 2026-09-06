@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "types": ["@cloudflare/workers-types"]
+  },
+  "include": [
+    "./**/*.ts",
+    "../emails/EmailShell.tsx",
+    "../emails/OtpEmail.tsx",
+    "../emails/render.ts"
+  ]
+}
