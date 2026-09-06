@@ -52,7 +52,11 @@ export async function harness(options: { groq?: boolean } = {}) {
                       : JSON.stringify({
                           paragraph: 'This instruction shows the value on the screen.',
                           steps:
-                            context.kind === 'block' ? [] : ['Read the value.', 'Show the result.'],
+                            groqMode === 'single-step'
+                              ? ['Read a value and store it in number.']
+                              : context.kind === 'block'
+                                ? []
+                                : ['Read the value.', 'Show the result.'],
                         }),
                   reasoning: 'Private reasoning must not be returned.',
                 },

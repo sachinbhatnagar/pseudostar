@@ -103,3 +103,7 @@ Worker version: `aab362e7-36b6-4438-82ad-60f29677b496`. The comparison view, att
 Live HTTPS, CSP, session response and unauthenticated AI rejection pass. Synthetic Groq calls were checked locally. Authenticated AI requests through the production Worker remain unverified; no email was sent.
 
 All 39 browser workflows pass against the deployed assets and CSP. Their authentication, persistence and AI calls use fixtures; they do not prove authenticated production API behavior.
+
+## AI one-step correction - 2026-09-06
+
+Worker version: `a3696638-1090-449b-b2c2-45b11eb524c4`. Accepts one-step explanations for one-instruction programs. Live Groq reproduced a valid single-step response that the previous minimum of two steps rejected. All 34 Worker tests pass, including the regression. Failure logs contain only a category and provider HTTP status. Signed-in production verification remains pending.

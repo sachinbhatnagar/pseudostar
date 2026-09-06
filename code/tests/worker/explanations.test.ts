@@ -8,6 +8,21 @@ afterEach(async () => {
   await h?.close();
 });
 const payload = { kind: 'program', source: 'INPUT number\nOUTPUT number', problemId: 'ref-1-1' };
+it('accepts a single explanation step for a one-instruction starter', async () => {
+  const a = await h.login();
+  h.groqMode('single-step');
+  const response = await h.request(
+    '/api/explanations',
+    'POST',
+    { ...payload, source: 'INPUT number' },
+    a.cookie,
+  );
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({
+    remaining: 199,
+    steps: ['Read a value and store it in number.'],
+  });
+});
 it('requires sign-in and sends only lesson context to the configured model', async () => {
   expect((await h.request('/api/explanations', 'POST', payload)).status).toBe(401);
   const a = await h.login();
