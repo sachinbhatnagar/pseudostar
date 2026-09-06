@@ -5,3 +5,4 @@ RESEND_FROM=PseudoStar <verified-sender@example.com>
 RESEND_API_KEY=
 # Generate at least 32 random bytes for this secret.
 OTP_HMAC_SECRET=
+GROQ_API_KEY=

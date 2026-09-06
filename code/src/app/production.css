@@ -1066,3 +1066,192 @@ button:disabled {
   font-size: 14px;
   line-height: 1.7;
 }
+
+.learning-action {
+  background: #e4ebe0;
+  color: #283e30;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.learning-action:hover:not(:disabled) {
+  background: #d6e2d1;
+}
+.learning-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.learning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+.learning-modal {
+  padding: 30px;
+  color: #283e30;
+  background: #f7f9f5;
+}
+.learning-modal .modal-heading {
+  gap: 24px;
+  align-items: flex-start;
+}
+.learning-modal .modal-heading h2 {
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+.learning-modal .modal-heading button {
+  background: #e4ebe0;
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.learning-modal p {
+  line-height: 1.7;
+}
+.comparison-modal {
+  width: min(1200px, calc(100vw - 32px));
+}
+.comparison-note {
+  margin: 0 0 18px;
+  color: #4e644f;
+  font-size: 13px;
+}
+.diff-scroll {
+  overflow: auto;
+  max-height: 60dvh;
+  border-radius: 8px;
+  background: #eef3eb;
+}
+.diff-table {
+  width: 100%;
+  min-width: 600px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.diff-table th {
+  position: sticky;
+  top: 0;
+  background: #dce6d7;
+  color: #283e30;
+  text-align: left;
+  padding: 14px 18px;
+  width: 50%;
+  font-size: 14px;
+  z-index: 1;
+}
+.diff-table td {
+  vertical-align: top;
+  padding: 6px 16px 6px 48px;
+  position: relative;
+  line-height: 1.65;
+  background: #eef3eb;
+}
+.diff-table td + td {
+  border-left: 5px solid #f7f9f5;
+}
+.diff-table code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 12px;
+}
+.diff-line {
+  position: absolute;
+  left: 12px;
+  width: 26px;
+  text-align: right;
+  color: #5c705a;
+  font-size: 11px;
+}
+.diff-changed td:first-child {
+  background: #eee1d1;
+}
+.diff-changed td:last-child {
+  background: #dce8d5;
+}
+.diff-changed td.diff-empty {
+  background: #e9eee6;
+}
+.credits-link {
+  color: #526650;
+  background: transparent;
+  border: 0;
+  padding: 6px 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+.credits-link:hover {
+  color: #283e30;
+}
+.signin-credits {
+  text-align: center;
+  padding: 16px;
+}
+.credits-modal {
+  width: min(520px, calc(100vw - 32px));
+}
+.explanation-caption,
+.explanation-allowance {
+  font-size: 12px;
+  color: #526650;
+}
+.explanation-code {
+  background: #eaf0e6;
+  padding: 14px 18px;
+  border-radius: 8px;
+}
+.explanation-code summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+.explanation-code pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.explanation-copy {
+  margin-top: 16px;
+  font-size: 15px;
+  line-height: 1.8;
+}
+.comparison-scroll-hint {
+  display: none;
+}
+.explanation-copy ol {
+  padding-left: 26px;
+}
+.explanation-copy li {
+  padding: 8px 0 8px 6px;
+}
+.explanation-loading {
+  padding: 20px 0;
+}
+.edit-actions {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+@media (max-width: 600px) {
+  .comparison-scroll-hint {
+    display: block;
+    font-size: 12px;
+    color: #526650;
+  }
+  .learning-modal {
+    padding: 20px;
+  }
+  .learning-modal .modal-heading h2 {
+    font-size: 19px;
+  }
+  .workspace-status {
+    flex-wrap: wrap;
+  }
+}

@@ -2,7 +2,7 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { build } from 'esbuild';
 import { readFile, readdir } from 'node:fs/promises';
 export const origin = 'https://pseudostar.test';
-export async function harness() {
+export async function harness(options: { groq?: boolean } = {}) {
   const built = await build({
     entryPoints: ['worker/index.ts'],
     bundle: true,
@@ -16,6 +16,8 @@ export async function harness() {
   });
   const messages: { to: string[]; html: string; text: string }[] = [];
   let rejectMail = false;
+  const explanations: Record<string, unknown>[] = [];
+  let groqMode = 'ok';
   const mf = new Miniflare(
     convertV4MiniflareOptions({
       cf: false,
@@ -29,9 +31,35 @@ export async function harness() {
         OTP_HMAC_SECRET: 'test-only-secret-with-more-than-32-characters',
         RESEND_API_KEY: 'test-only',
         RESEND_FROM: 'PseudoStar <test@example.com>',
+        ...(options.groq === false ? {} : { GROQ_API_KEY: 'test-only-groq' }),
       },
       serviceBindings: { ASSETS: () => new Response('asset') },
       outboundService: async (request) => {
+        if (new URL(request.url).hostname === 'api.groq.com') {
+          const payload = (await request.json()) as Record<string, unknown>;
+          explanations.push(payload);
+          if (groqMode === 'failure')
+            return new Response('private provider error', { status: 429 });
+          const context = JSON.parse((payload.messages as { content: string }[])[1].content);
+          return Response.json({
+            choices: [
+              {
+                finish_reason: groqMode === 'truncated' ? 'length' : 'stop',
+                message: {
+                  content:
+                    groqMode === 'malformed'
+                      ? 'not json'
+                      : JSON.stringify({
+                          paragraph: 'This instruction shows the value on the screen.',
+                          steps:
+                            context.kind === 'block' ? [] : ['Read the value.', 'Show the result.'],
+                        }),
+                  reasoning: 'Private reasoning must not be returned.',
+                },
+              },
+            ],
+          });
+        }
         if (new URL(request.url).hostname !== 'api.resend.com')
           throw new Error('Unexpected outbound request.');
         if (rejectMail) return new Response('{}', { status: 503 });
@@ -89,6 +117,10 @@ export async function harness() {
     challenge,
     login,
     messages,
+    explanations,
+    groqMode: (mode: string) => {
+      groqMode = mode;
+    },
     rejectMail: (value: boolean) => {
       rejectMail = value;
     },

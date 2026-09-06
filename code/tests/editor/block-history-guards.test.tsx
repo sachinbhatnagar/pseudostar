@@ -11,6 +11,10 @@ const blockly = vi.hoisted(() => ({
 }));
 vi.mock('../../src/editor/blocks', () => ({
   Blockly: {
+    ContextMenuRegistry: {
+      registry: { register: vi.fn(), unregister: vi.fn() },
+      ScopeType: { BLOCK: 'block' },
+    },
     inject: () => ({
       undo: blockly.undo,
       dispose: vi.fn(),

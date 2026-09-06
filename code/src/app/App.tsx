@@ -15,6 +15,7 @@ import { useRunner } from '../runner/use-runner';
 import { catalog } from '../problems/catalog';
 import type { Problem } from '../problems/types';
 import type { CaseResult } from '../problems/check';
+import { SolutionComparison } from '../learning/SolutionComparison';
 import type { BlockHandle } from '../editor/BlockEditor';
 const BlockEditor = lazy(() =>
   import('../editor/BlockEditor').then((m) => ({ default: m.BlockEditor })),
@@ -59,7 +60,9 @@ function Modal({
   onOpenChange,
   title,
   children,
+  className = '',
 }: {
+  className?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -69,7 +72,7 @@ function Modal({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal container={globalThis.document.fullscreenElement as HTMLElement | null}>
         <Dialog.Overlay className="modal-overlay" />
-        <Dialog.Content className="modal">
+        <Dialog.Content className={`modal ${className}`}>
           <div className="modal-heading">
             <Dialog.Title>{title}</Dialog.Title>
             <Dialog.Close aria-label="Close">Close</Dialog.Close>
@@ -81,6 +84,24 @@ function Modal({
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+  );
+}
+function Credits() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className="credits-link" onClick={() => setOpen(true)}>
+        © 2026 Studio 8 Collective
+      </button>
+      <Modal
+        open={open}
+        onOpenChange={setOpen}
+        title="Studio 8 Collective"
+        className="learning-modal credits-modal"
+      >
+        <p>Built by Sachin Bhatnagar for Studio 8 Collective</p>
+      </Modal>
+    </>
   );
 }
 export default function App() {
@@ -120,6 +141,9 @@ export default function App() {
             setGuest(true);
           }}
         />
+        <footer className="signin-credits">
+          <Credits />
+        </footer>
       </>
     );
   return (
@@ -229,6 +253,60 @@ function Studio({
   const [solution, setSolution] = useState('');
   const [solutionError, setSolutionError] = useState('');
   const [solutionBusy, setSolutionBusy] = useState(false);
+  const [comparisonSource, setComparisonSource] = useState('');
+  const [explanation, setExplanation] = useState<{
+    kind: 'block' | 'program';
+    source: string;
+    block?: string;
+    problemId: string | null;
+    paragraph?: string;
+    steps?: string[];
+    remaining?: number;
+    error?: string;
+    busy: boolean;
+  } | null>(null);
+  const explanationRequest = useRef<AbortController | null>(null);
+  const explainCode = async (
+    kind: 'block' | 'program',
+    source: string,
+    block?: string,
+    problemId = doc.problemId,
+  ) => {
+    if (!user) return;
+    explanationRequest.current?.abort();
+    const request = new AbortController();
+    explanationRequest.current = request;
+    setExplanation({ kind, source, block, problemId, busy: true });
+    try {
+      const result = await scopedApi<{ paragraph: string; steps: string[]; remaining: number }>(
+        '/explanations',
+        {
+          method: 'POST',
+          signal: AbortSignal.any([request.signal, AbortSignal.timeout(35000)]),
+          body: JSON.stringify({ kind, source, block, problemId }),
+        },
+      );
+      if (explanationRequest.current === request)
+        setExplanation({ kind, source, block, problemId, ...result, busy: false });
+    } catch (error) {
+      if (explanationRequest.current === request)
+        setExplanation({
+          kind,
+          source,
+          block,
+          problemId,
+          busy: false,
+          error: (error as Error).message,
+        });
+    }
+  };
+  useEffect(
+    () => () => {
+      explanationRequest.current?.abort();
+    },
+    [],
+  );
+
   useEffect(() => {
     const changed = () => setExpanded(globalThis.document.fullscreenElement === workbench.current);
     globalThis.document.addEventListener('fullscreenchange', changed);
@@ -569,8 +647,9 @@ function Studio({
             )}
             {problem && (
               <button
-                className="solution-button"
+                className="learning-action solution-button"
                 onClick={() => {
+                  setComparisonSource(doc.draft);
                   setSolution('');
                   setSolutionError('');
                   setSolutionOpen(true);
@@ -641,6 +720,14 @@ function Studio({
             </div>
             <div className="edit-actions">
               <button
+                className="learning-action"
+                disabled={!user || !doc.draft.trim()}
+                title={!user ? 'Sign in to use AI explanations' : undefined}
+                onClick={() => void explainCode('program', doc.draft)}
+              >
+                Explain Pseudocode
+              </button>
+              <button
                 onClick={() => blocks.current?.undo()}
                 disabled={mode === 'text' || invalidText}
               >
@@ -683,6 +770,13 @@ function Studio({
                     blockDraft.current = { id: doc.localId, source };
                   }}
                   invalid={invalidText}
+                  onExplain={
+                    user
+                      ? (block, source) => {
+                          void explainCode('block', source, block);
+                        }
+                      : undefined
+                  }
                   lastValidSource={doc.lastValidSource}
                   activeLine={active ? runner.line : undefined}
                   diagnosticLine={diagnosticLine}
@@ -861,6 +955,7 @@ function Studio({
             </section>
           )}
           <footer className="workspace-status">
+            <Credits />
             <span role="status">{status}</span>
             {!user && <span>Guest session · this device only</span>}
           </footer>
@@ -1087,41 +1182,111 @@ function Studio({
       <Modal
         open={solutionOpen}
         onOpenChange={setSolutionOpen}
-        title={solution ? 'One way to solve it' : 'Do you really want to see the solution?'}
+        className={`learning-modal ${solution ? 'comparison-modal' : ''}`}
+        title={solution ? 'Compare your approach' : 'Do you really want to see the solution?'}
       >
         {solution ? (
-          <>
-            <p>Compare the steps with your own approach.</p>
-            <pre className="solution-source">{solution}</pre>
-          </>
+          <SolutionComparison source={comparisonSource} solution={solution} />
         ) : (
           <>
             <p>You can return to your program and try another idea first.</p>
-            <button disabled={solutionBusy} onClick={() => setSolutionOpen(false)}>
-              Keep thinking
-            </button>
-            <button
-              disabled={solutionBusy}
-              onClick={async () => {
-                if (!problem) return;
-                setSolutionBusy(true);
-                setSolutionError('');
-                try {
-                  const result = await api<{ source: string }>(`/problems/${problem.id}/solution`, {
-                    method: 'POST',
-                    body: JSON.stringify({ confirmed: true }),
-                  });
-                  setSolution(result.source);
-                } catch (e) {
-                  setSolutionError((e as Error).message);
-                } finally {
-                  setSolutionBusy(false);
-                }
-              }}
-            >
-              {solutionBusy ? 'Opening solution…' : 'Yes, show the solution'}
-            </button>
+            <div className="learning-actions">
+              <button
+                className="learning-action"
+                disabled={solutionBusy}
+                onClick={() => setSolutionOpen(false)}
+              >
+                Keep thinking
+              </button>
+              <button
+                className="learning-action"
+                disabled={solutionBusy}
+                onClick={async () => {
+                  if (!problem) return;
+                  setSolutionBusy(true);
+                  setSolutionError('');
+                  try {
+                    const result = await api<{ source: string }>(
+                      `/problems/${problem.id}/solution`,
+                      {
+                        method: 'POST',
+                        body: JSON.stringify({ confirmed: true }),
+                      },
+                    );
+                    setSolution(result.source);
+                  } catch (e) {
+                    setSolutionError((e as Error).message);
+                  } finally {
+                    setSolutionBusy(false);
+                  }
+                }}
+              >
+                {solutionBusy ? 'Opening solution…' : 'Yes, show the solution'}
+              </button>
+            </div>
             {solutionError && <p role="alert">{solutionError}</p>}
+          </>
+        )}
+      </Modal>
+      <Modal
+        open={explanation !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            explanationRequest.current?.abort();
+            explanationRequest.current = null;
+            setExplanation(null);
+          }
+        }}
+        title={explanation?.kind === 'block' ? 'Explain Purpose' : 'Explain Pseudocode'}
+        className="learning-modal explanation-modal"
+      >
+        {explanation && (
+          <>
+            <p className="explanation-caption">
+              AI instructor · Your current {explanation.kind === 'block' ? 'block' : 'program'}
+            </p>
+            <details className="explanation-code">
+              <summary>
+                {explanation.kind === 'block' ? 'Selected block' : 'Program being explained'}
+              </summary>
+              <pre>{explanation.block ?? explanation.source}</pre>
+            </details>
+            {explanation.busy ? (
+              <p role="status" className="explanation-loading">
+                Reading your pseudocode…
+              </p>
+            ) : explanation.error ? (
+              <>
+                <p role="alert">{explanation.error}</p>
+                <button
+                  className="learning-action"
+                  onClick={() =>
+                    void explainCode(
+                      explanation.kind,
+                      explanation.source,
+                      explanation.block,
+                      explanation.problemId,
+                    )
+                  }
+                >
+                  Try again
+                </button>
+              </>
+            ) : (
+              <div className="explanation-copy">
+                <p>{explanation.paragraph}</p>
+                {!!explanation.steps?.length && (
+                  <ol>
+                    {explanation.steps.map((step, i) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ol>
+                )}
+                <p className="explanation-allowance">
+                  {explanation.remaining} of 200 explanations left today · Resets at midnight UTC
+                </p>
+              </div>
+            )}
           </>
         )}
       </Modal>

@@ -14,8 +14,11 @@ export const BlockEditor = forwardRef<
     activeLine?: number;
     diagnosticLine?: number;
     lastValidSource?: string;
+    onExplain?: (block: string, source: string) => void;
   }
->(({ source, onChange, invalid, activeLine, diagnosticLine, lastValidSource }, ref) => {
+>(({ source, onChange, invalid, activeLine, diagnosticLine, lastValidSource, onExplain }, ref) => {
+  const explain = useRef(onExplain);
+  explain.current = onExplain;
   const host = useRef<HTMLDivElement>(null),
     workspace = useRef<Blockly.WorkspaceSvg | null>(null),
     last = useRef(source),
@@ -55,6 +58,23 @@ export const BlockEditor = forwardRef<
       move: { scrollbars: true, drag: true, wheel: true },
     });
     workspace.current = ws;
+    const menuId = `ps-explain-${ws.id}`;
+    Blockly.ContextMenuRegistry.registry.register({
+      id: menuId,
+      scopeType: Blockly.ContextMenuRegistry.ScopeType.BLOCK,
+      displayText: 'Explain Purpose',
+      weight: 1,
+      preconditionFn: (scope) =>
+        scope.block?.workspace !== ws
+          ? 'hidden'
+          : explain.current && !invalidRef.current
+            ? 'enabled'
+            : 'disabled',
+      callback: (scope) => {
+        if (scope.block && explain.current)
+          explain.current(sourceFor(ws, scope.block), sourceFor(ws));
+      },
+    });
     const current = parse(last.current);
     const parsed = current.ok ? current : parse(lastValidSource ?? '');
     if (parsed.ok) programToWorkspace(parsed.program, ws);
@@ -98,6 +118,7 @@ export const BlockEditor = forwardRef<
     resize.observe(host.current);
     return () => {
       resize.disconnect();
+      Blockly.ContextMenuRegistry.registry.unregister(menuId);
       ws.dispose();
       workspace.current = null;
     };
@@ -314,6 +335,17 @@ export const BlockEditor = forwardRef<
           </button>
           <button disabled={!selected || locked} onClick={() => act('delete')}>
             Delete
+          </button>
+          <button
+            disabled={!selected || locked || !onExplain}
+            title={!onExplain ? 'Sign in to use AI explanations' : undefined}
+            onClick={() => {
+              const ws = workspace.current,
+                block = selected ? ws?.getBlockById(selected) : null;
+              if (ws && block) onExplain?.(sourceFor(ws, block), sourceFor(ws));
+            }}
+          >
+            Explain Purpose
           </button>
         </div>
       </div>

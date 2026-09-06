@@ -5,6 +5,7 @@ import { cleanup, programs } from './programs';
 import { progress } from './progress';
 import { ApiError, fail, body } from './validation';
 import { internalSolutions } from '../internal/solutions';
+import { explain } from './explanations';
 async function api(request: Request, env: Env) {
   const url = new URL(request.url);
   if (!['GET', 'HEAD'].includes(request.method)) {
@@ -33,7 +34,9 @@ async function api(request: Request, env: Env) {
   if (url.pathname === '/api/session' && request.method === 'GET') return Response.json({ user });
   const programRoute = /^\/api\/programs(?:\/([^/]+)(\/restore)?)?$/.exec(url.pathname);
   const progressRoute = /^\/api\/progress(?:\/([^/]+))?$/.exec(url.pathname);
-  if (!programRoute && !progressRoute && !isLogout) fail(404, 'NOT_FOUND', 'API route not found.');
+  const explanationRoute = url.pathname === '/api/explanations' && request.method === 'POST';
+  if (!programRoute && !progressRoute && !isLogout && !explanationRoute)
+    fail(404, 'NOT_FOUND', 'API route not found.');
   if (!user) fail(401, 'SIGN_IN_REQUIRED', 'Sign in to continue.');
   const expectedUser = request.headers.get('X-Pseudostar-User');
   if (expectedUser !== null && expectedUser !== user.id)
@@ -43,6 +46,7 @@ async function api(request: Request, env: Env) {
       'Your signed-in account changed. Download any unsaved work, then reload before continuing.',
     );
   if (isLogout) return logout(request, env);
+  if (explanationRoute) return explain(request, env, user.id);
   if (programRoute) return programs(request, env, user.id, programRoute[1], !!programRoute[2]);
   return progress(request, env, user.id, progressRoute![1]);
 }

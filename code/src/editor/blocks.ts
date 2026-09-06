@@ -235,8 +235,8 @@ export const palette = [
   { type: 'ps_sub', label: 'SUB-ROUTINE', hint: 'Group instructions', category: 'routine' },
   { type: 'ps_call', label: 'name()', hint: 'Call a sub-routine', category: 'routine' },
 ];
-export function sourceFor(ws: Blockly.Workspace) {
-  const chain = (block: Blockly.Block | null, depth = 0): string => {
+export function sourceFor(ws: Blockly.Workspace, selected?: Blockly.Block) {
+  const chain = (block: Blockly.Block | null, depth = 0, siblings = true): string => {
     if (!block) return '';
     const pad = '    '.repeat(depth),
       f = (n: string) => block.getFieldValue(n),
@@ -280,8 +280,9 @@ export function sourceFor(ws: Blockly.Workspace) {
         break;
       }
     }
-    return pad + text + '\n' + chain(block.getNextBlock(), depth);
+    return pad + text + '\n' + (siblings ? chain(block.getNextBlock(), depth) : '');
   };
+  if (selected) return chain(selected, 0, false).trimEnd();
   return ws
     .getTopBlocks(true)
     .map((b) => chain(b))

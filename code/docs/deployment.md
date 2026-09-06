@@ -95,3 +95,11 @@ Migration `0002_unique_program_names.sql` is applied remotely. The pre-migration
 Production session, unauthenticated program access and the confirmed-solution endpoint were checked without sending email.
 
 All 35 browser workflows passed against this production version. Authentication and persistence calls in those tests use fixtures; the live API checks above are separate. No email was sent during deployment verification.
+
+## AI update - 2026-09-06
+
+Worker version: `aab362e7-36b6-4438-82ad-60f29677b496`. The comparison view, attribution and AI explanations are deployed. `GROQ_API_KEY` was uploaded as a Worker secret. `.dev.vars` was not uploaded. No database migration was required. The existing rate-limit table stores the shared 200-per-account daily allowance.
+
+Live HTTPS, CSP, session response and unauthenticated AI rejection pass. Synthetic Groq calls were checked locally. Authenticated AI requests through the production Worker remain unverified; no email was sent.
+
+All 39 browser workflows pass against the deployed assets and CSP. Their authentication, persistence and AI calls use fixtures; they do not prove authenticated production API behavior.
