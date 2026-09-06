@@ -72,3 +72,16 @@ The CSP permits same-origin scripts, API requests, local fonts and module worker
 Offline preflight checks placeholders, origin/sender shape, D1 UUID shape, bindings, API routing, cleanup configuration and asset presence. It does not inspect remote accounts, migrations, secrets, DNS or sender status.
 
 After authorized deployment, verify static routes, JSON API errors, response headers, editor interactions, execution workers and the Secure/HttpOnly/SameSite cookie. With an authorized recipient, verify delivery, failed resend, replay, expiry, lockout and logout. Use two accounts for isolation, saved drafts, conflicts, delete and restore. Confirm scheduled cleanup separately. These live checks remain pending until credentials, a deployed target and an authorized recipient are available.
+
+## Production deployment - 2026-09-06
+
+- URL: https://pseudostar.stacksauce.dev
+- Account: StackSauce (`d6f2d5fb08dc097f9e37271271a73bb5`).
+- Worker: `pseudostar`. Version: `e5f862f9-900d-4aae-baa6-bd483002f31a`.
+- D1: `pseudostar` (`6212c179-9dfd-48f0-bdac-2af397e82d0b`), APAC. `0001_initial.sql` applied; no pending migrations.
+- Sender: `PseudoStar <login@pseudostar.stacksauce.dev>`. DKIM, SPF and sending MX records resolve. The supplied Resend key is send-only and cannot report domain verification status.
+- `RESEND_API_KEY` and `OTP_HMAC_SECRET` uploaded as Worker secrets. Local `.dev.vars` retains the local development origin.
+- Custom domain and TLS active; workers.dev and preview URLs disabled. Cleanup trigger: `17 3 * * *` UTC.
+- Live HTTPS, CSP, session response and unauthenticated program rejection verified. Actual email delivery, authenticated production flows and scheduled cleanup execution remain to be verified. No test emails were sent.
+
+All 28 Chrome browser workflows passed against the deployed assets and CSP. These checks intercept authentication and persistence APIs; they do not prove live email or cloud-save behavior.

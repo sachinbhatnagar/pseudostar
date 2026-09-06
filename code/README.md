@@ -55,7 +55,7 @@ For hot reload, run `npm run dev` in a second terminal and restart Wrangler with
 - Storybook builds; four email frames and six sign-in interaction stories pass browser checks.
 - The client bundle contains no private model-answer imports or server secret names.
 
-Live Resend delivery, remote D1, Cloudflare deployment and production smoke tests remain unverified until credentials are supplied.
+Production is deployed at https://pseudostar.stacksauce.dev. Remote D1 migration, HTTPS, static security headers, the session endpoint and unauthenticated program access checks pass. Live email delivery and authenticated production flows remain unverified.
 
 ## Checks
 
@@ -74,7 +74,7 @@ Worker tests require loopback access. Their Resend transport is intercepted: no 
 
 ## Deployment
 
-Follow [Cloudflare and Resend setup](docs/deployment.md) when credentials are available. Config placeholders deliberately prevent preflight from passing.
+Follow [Cloudflare and Resend setup](docs/deployment.md). The checked-in configuration targets the dedicated production Worker and D1 database. Secrets remain outside source control.
 
 ```sh
 node scripts/preflight.mjs --config-only
