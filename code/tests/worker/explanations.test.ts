@@ -37,9 +37,9 @@ it('requires sign-in and sends only lesson context to the configured model', asy
   expect(request.include_reasoning).toBe(false);
   expect(request.messages[0].content).toContain('senior IGCSE ICT Instructor');
   expect(request.messages[0].content).toContain('ASD-STE100');
-  expect(request.messages[0].content).toContain('Never mention, quote, paraphrase');
+  expect(request.messages[0].content).toContain('Never invent missing instructions');
   const context = JSON.parse(request.messages[1].content);
-  expect(context.privateReferenceSolution).toContain('ENDIF');
+  expect(context).not.toHaveProperty('privateReferenceSolution');
   expect(context.learnerPseudocode).toBe(payload.source);
   expect(JSON.stringify(request)).not.toContain(a.user.email);
 });
@@ -89,4 +89,36 @@ it('reports missing credentials without charging or contacting Groq', async () =
   const a = await h.login();
   expect((await h.request('/api/explanations', 'POST', payload, a.cookie)).status).toBe(503);
   expect(h.explanations).toHaveLength(0);
+});
+it('retries a temporary provider failure within one allowance', async () => {
+  const a = await h.login();
+  h.groqMode('retry-once');
+  const r = await h.request('/api/explanations', 'POST', payload, a.cookie);
+  expect(r.status).toBe(200);
+  expect(await r.json()).toMatchObject({ remaining: 199 });
+  expect(h.explanations).toHaveLength(2);
+});
+it('keeps block explanations contextual and discards extra model steps', async () => {
+  const a = await h.login();
+  h.groqMode('single-step');
+  const r = await h.request(
+    '/api/explanations',
+    'POST',
+    {
+      kind: 'block',
+      source: 'INPUT number\nOUTPUT number',
+      block: 'OUTPUT number',
+      problemId: 'ref-1-1',
+    },
+    a.cookie,
+  );
+  expect(r.status).toBe(200);
+  expect(await r.json()).toMatchObject({ steps: [] });
+  const messages = (h.explanations[0] as any).messages;
+  expect(messages[0].content).toContain('values set by earlier instructions');
+  expect(JSON.parse(messages[1].content)).toMatchObject({
+    learnerPseudocode: 'INPUT number\nOUTPUT number',
+    selectedBlock: 'OUTPUT number',
+  });
+  expect(JSON.parse(messages[1].content)).not.toHaveProperty('privateReferenceSolution');
 });

@@ -1255,3 +1255,37 @@ button:disabled {
     flex-wrap: wrap;
   }
 }
+
+.explanation-modal {
+  width: min(660px, calc(100vw - 32px));
+}
+.explanation-copy > p {
+  margin-top: 0;
+}
+.explanation-details {
+  margin-top: 24px;
+  color: #526650;
+  font-size: 12px;
+}
+.explanation-details summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.explanation-details pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow: auto;
+  line-height: 1.7;
+}
+.solution-replace {
+  margin-top: 24px;
+}
+.learning-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.learning-toolbar .solution-button {
+  margin: 0;
+}

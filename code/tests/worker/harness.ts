@@ -38,6 +38,10 @@ export async function harness(options: { groq?: boolean } = {}) {
         if (new URL(request.url).hostname === 'api.groq.com') {
           const payload = (await request.json()) as Record<string, unknown>;
           explanations.push(payload);
+          if (groqMode === 'retry-once') {
+            groqMode = 'ok';
+            return new Response('{}', { status: 503 });
+          }
           if (groqMode === 'failure')
             return new Response('private provider error', { status: 429 });
           const context = JSON.parse((payload.messages as { content: string }[])[1].content);

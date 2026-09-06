@@ -49,8 +49,8 @@ Run `npm run dev` in a second terminal and open `http://127.0.0.1:5173`. The API
 - Unnamed drafts stay in device recovery only. Save now asks for a name. Deleting the open program clears the editor without creating a copy.
 - Opening a saved program asks for a different name, then updates that same entry. Explicit Save copy asks for an unused name.
 - Active program names are unique per account and in the guest library. Migration `0002_unique_program_names.sql` retains old duplicates under distinct names. It is applied to the production database.
-- Show Solution requires confirmation, then compares the current draft and reference in aligned columns. Answers never replace the draft.
-- Signed-in learners can use Explain Pseudocode or right-click a block for Explain Purpose. Groq explains current code, with the reference supplied privately for accuracy. The shared allowance is 200 explanations per account per UTC day. Failed provider requests return their allowance.
+- Show Solution requires confirmation, then compares the current draft and reference in aligned columns. Use solution replaces the current draft only after a second confirmation.
+- Signed-in learners can use Explain Pseudocode or right-click a block for Explain Purpose. Groq explains current code, using only the current learner code and problem context; reference solutions are not sent to Groq. The shared allowance is 200 explanations per account per UTC day. Failed provider requests return their allowance.
 - The copyright link opens the Studio 8 Collective attribution.
 - The top toolbar includes Save now and icons. Full screen retains the block picker and all editor modes.
 - Incomplete block edits remain editable. Field validation waits for the edit to finish.
@@ -59,8 +59,8 @@ Run `npm run dev` in a second terminal and open `http://127.0.0.1:5173`. The API
 
 - TypeScript checks and production build pass.
 - 305 unit/content/editor/runner/recovery tests pass.
-- 33 Worker/D1 integration tests pass with intercepted email and AI providers.
-- 39 Chrome browser workflows pass with isolated API fixtures, including desktop, tablet, phone, keyboard and reduced motion.
+- 36 Worker/D1 integration tests pass with intercepted email and AI providers.
+- 40 Chrome browser workflows pass with isolated API fixtures, including desktop, tablet, phone, keyboard and reduced motion.
 - Four deployment-preflight tests pass. Worker bundling passes Wrangler dry-run.
 - Storybook builds; four email frames and six sign-in interaction stories pass browser checks.
 - The client bundle contains no private model-answer imports or server secret names.

@@ -245,7 +245,7 @@ export async function guest(page: Page) {
     await page.getByRole('textbox', { name: 'Program name' }).fill('My first program');
 }
 export async function write(page: Page, source: string) {
-  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByRole('button', { name: 'Pseudocode', exact: true }).click();
   await editor(page).fill(source);
   await expect(editor(page)).toHaveText(source, { useInnerText: true });
 }

@@ -31,7 +31,7 @@ test('explains a program with ordered steps and a block through its right-click 
   await page.getByRole('button', { name: 'Explain Pseudocode', exact: true }).click();
   const program = page.getByRole('dialog', { name: 'Explain Pseudocode' });
   await expect(program.locator('li')).toHaveText(['Read the number.', 'Show the number.']);
-  await expect(program).toContainText('199 of 200');
+  await expect(program).toContainText('199 explanations left');
   await program.getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('button', { name: 'Blocks', exact: true }).click();
   await page
@@ -94,4 +94,27 @@ test('confirmed solution opens aligned code panes with differences', async ({ pa
     'INPUT number',
     'INPUT number',
   ]);
+});
+test('using a solution needs confirmation and replaces the current draft', async ({ page }) => {
+  await page.route('**/api/problems/*/solution', (r) =>
+    r.fulfill({ json: { source: 'INPUT number\nOUTPUT number' } }),
+  );
+  await guest(page);
+  await page.getByRole('button', { name: 'Choose a problem', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /The inclusive gate/ })
+    .click();
+  await page.getByRole('button', { name: 'Show Solution', exact: true }).click();
+  await page.getByRole('button', { name: 'Yes, show the solution', exact: true }).click();
+  await page.getByRole('button', { name: 'Use solution in my program', exact: true }).click();
+  await page.getByRole('button', { name: 'Keep my program', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: 'Use solution in my program', exact: true }).click();
+  await page.getByRole('button', { name: 'Replace program', exact: true }).click();
+  await page.getByRole('button', { name: 'Pseudocode', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Pseudocode editor' })).toHaveText(
+    'INPUT number\nOUTPUT number',
+    { useInnerText: true },
+  );
 });

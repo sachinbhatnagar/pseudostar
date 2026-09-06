@@ -12,7 +12,7 @@ test('guest opens a starter, explores hints in order, and restores the local pro
   await expect(
     page.getByRole('heading', { name: 'The inclusive gate', exact: true }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByRole('button', { name: 'Pseudocode', exact: true }).click();
   await expect(editor(page)).toHaveText('INPUT number', { useInnerText: true });
   await expect(page.getByText('A range has two limits.', { exact: true })).not.toBeVisible();
   await page.getByRole('button', { name: 'Give me a hint', exact: true }).click();
@@ -64,7 +64,7 @@ test('invalid text disables execution and block edits, survives reload, and can 
 }) => {
   await guest(page);
   await write(page, 'OUTPUT "kept"');
-  await page.getByRole('button', { name: 'Split', exact: true }).click();
+  await page.getByRole('button', { name: 'Split Screen', exact: true }).click();
   const workspace = page.locator('.blockly-host');
   await expect(workspace).toContainText('"kept"');
   await editor(page).fill('OUTPUT "unterminated');
@@ -119,7 +119,7 @@ test('text converts to blocks and editing a block field updates executable text'
 }) => {
   await guest(page);
   await write(page, 'INPUT value\nOUTPUT value + 1');
-  await page.getByRole('button', { name: 'Split', exact: true }).click();
+  await page.getByRole('button', { name: 'Split Screen', exact: true }).click();
   await expect(page.locator('.blockly-host')).toContainText('INPUT');
   await expect(page.locator('.blockly-host')).toContainText('value');
   await page
@@ -132,7 +132,7 @@ test('text converts to blocks and editing a block field updates executable text'
   await expect(editor(page)).toHaveText('INPUT value\nOUTPUT value * 2', { useInnerText: true });
   await page.getByRole('button', { name: 'Blocks', exact: true }).click();
   await expect(editor(page)).toHaveCount(0);
-  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByRole('button', { name: 'Pseudocode', exact: true }).click();
   await expect(editor(page)).toHaveText('INPUT value\nOUTPUT value * 2', { useInnerText: true });
   await page.getByRole('button', { name: 'Run program', exact: true }).click();
   await page.getByRole('textbox', { name: 'Input for value', exact: true }).fill('42');
@@ -145,7 +145,7 @@ test('partial block fields do not interrupt typing and incomplete blocks remain 
 }) => {
   await guest(page);
   await write(page, 'OUTPUT 12');
-  await page.getByRole('button', { name: 'Split', exact: true }).click();
+  await page.getByRole('button', { name: 'Split Screen', exact: true }).click();
   await page.locator('.blockly-host .blocklyText').filter({ hasText: /^12$/ }).click();
   const field = page.locator('input.blocklyHtmlInput');
   await field.fill('');
@@ -192,7 +192,7 @@ test('restore last valid program restores current document and never a previous 
 test('mode switches preserve both editor mounts and block undo history', async ({ page }) => {
   await guest(page);
   await write(page, 'OUTPUT "base"');
-  await page.getByRole('button', { name: 'Split', exact: true }).click();
+  await page.getByRole('button', { name: 'Split Screen', exact: true }).click();
   const textNode = await editor(page).elementHandle();
   const svg = page.locator('.blockly-host .blocklySvg');
   await expect(svg).toBeVisible();
@@ -207,10 +207,10 @@ test('mode switches preserve both editor mounts and block undo history', async (
   await expect(editor(page)).toHaveText('OUTPUT "changed"');
   await page.getByRole('button', { name: 'Blocks', exact: true }).click();
   await expect(page.locator('.text-surface')).toBeHidden();
-  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByRole('button', { name: 'Pseudocode', exact: true }).click();
   await expect(page.locator('.block-surface')).toBeHidden();
   expect(await editor(page).evaluate((element, old) => element === old, textNode)).toBe(true);
-  await page.getByRole('button', { name: 'Split', exact: true }).click();
+  await page.getByRole('button', { name: 'Split Screen', exact: true }).click();
   expect(await svg.evaluate((element, old) => element === old, blockNode)).toBe(true);
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(editor(page)).toHaveText('OUTPUT "base"', { useInnerText: true });
@@ -219,7 +219,7 @@ test('mode switches preserve both editor mounts and block undo history', async (
 test('palette click with no selection appends to the existing program', async ({ page }) => {
   await guest(page);
   await write(page, 'OUTPUT "first"');
-  await page.getByRole('button', { name: 'Split', exact: true }).click();
+  await page.getByRole('button', { name: 'Split Screen', exact: true }).click();
   await expect(
     page.locator('.blockly-host .blocklyText').filter({ hasText: /^"first"$/ }),
   ).toBeVisible();
@@ -233,7 +233,7 @@ test('new documents get separate editor instances and cannot undo into the previ
 }) => {
   await guest(page);
   await write(page, 'OUTPUT "previous document"');
-  await page.getByRole('button', { name: 'Split', exact: true }).click();
+  await page.getByRole('button', { name: 'Split Screen', exact: true }).click();
   const textNode = await editor(page).elementHandle();
   const svg = page.locator('.blockly-host .blocklySvg');
   await expect(svg).toBeVisible();
@@ -324,7 +324,7 @@ test('responsive layouts stay visible without overflow and support keyboard and 
   await expect(page.getByRole('heading', { name: 'A blank page. A new idea.' })).toBeHidden();
   await page.getByRole('button', { name: 'Blocks', exact: true }).focus();
   await page.keyboard.press('Tab');
-  const textMode = page.getByRole('button', { name: 'Text', exact: true });
+  const textMode = page.getByRole('button', { name: 'Pseudocode', exact: true });
   await expect(textMode).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(textMode).toHaveAttribute('aria-pressed', 'true');
@@ -352,9 +352,9 @@ test('full screen keeps the block picker and all editor modes available', async 
   await expect(
     page.getByRole('button', { name: 'OUTPUT Show a value', exact: true }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByRole('button', { name: 'Pseudocode', exact: true }).click();
   await expect(editor(page)).toBeVisible();
-  await page.getByRole('button', { name: 'Split', exact: true }).click();
+  await page.getByRole('button', { name: 'Split Screen', exact: true }).click();
   await expect(editor(page)).toBeVisible();
   await expect(page.locator('.blockly-host')).toBeVisible();
   await page.getByRole('button', { name: 'Exit full screen', exact: true }).click();
@@ -384,6 +384,6 @@ test('solution needs confirmation and leaves the learner draft unchanged', async
   await expect(page.getByRole('dialog')).toContainText('OUTPUT "Example solution"');
   expect(requests).toBe(1);
   await page.getByRole('button', { name: 'Close', exact: true }).click();
-  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByRole('button', { name: 'Pseudocode', exact: true }).click();
   await expect(editor(page)).toHaveText('INPUT number', { useInnerText: true });
 });

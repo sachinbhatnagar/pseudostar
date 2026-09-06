@@ -160,7 +160,7 @@ test('guest and two accounts keep separate drafts across sign-out and reload', a
   await write(page, 'OUTPUT "guest private"');
   await page.getByRole('button', { name: 'Sign in to save', exact: true }).click();
   await signIn(page);
-  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByRole('button', { name: 'Pseudocode', exact: true }).click();
   await expect(editor(page)).not.toContainText('guest private');
   await write(page, 'OUTPUT "alice private"');
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
@@ -169,7 +169,7 @@ test('guest and two accounts keep separate drafts across sign-out and reload', a
     'OUTPUT "alice private"',
   );
   await signIn(page, 'bob@example.test');
-  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByRole('button', { name: 'Pseudocode', exact: true }).click();
   await expect(editor(page)).not.toContainText('alice private');
   await expect(editor(page)).not.toContainText('guest private');
   await write(page, 'OUTPUT "bob private"');

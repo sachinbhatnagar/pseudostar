@@ -107,3 +107,9 @@ All 39 browser workflows pass against the deployed assets and CSP. Their authent
 ## AI one-step correction - 2026-09-06
 
 Worker version: `a3696638-1090-449b-b2c2-45b11eb524c4`. Accepts one-step explanations for one-instruction programs. Live Groq reproduced a valid single-step response that the previous minimum of two steps rejected. All 34 Worker tests pass, including the regression. Failure logs contain only a category and provider HTTP status. Signed-in production verification remains pending.
+
+## Contextual explanations and solution replacement - 2026-09-06
+
+Worker version: `90d4ecd7-0be4-49d6-840e-4cfd7a451319`. AI receives current learner code and problem context only, with separate mode instructions. Reference solutions are excluded. Block replies discard extra steps; temporary failures get one retry within 25 seconds and one allowance. The explanation panel puts code and usage in a disclosure. Editor modes are Blocks, Pseudocode and Split Screen. Show Solution sits beside Explain Pseudocode. Use solution requires confirmation and updates the current draft without creating a copy.
+
+All 36 Worker tests and 40 local browser workflows pass. Desktop and phone panels were reviewed. Synthetic live Groq samples checked contextual block and program output; model correctness is not guaranteed. Signed-in production AI calls remain unverified.

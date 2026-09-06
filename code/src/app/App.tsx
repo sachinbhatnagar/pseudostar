@@ -250,6 +250,7 @@ function Studio({
   const workbench = useRef<HTMLElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [solutionOpen, setSolutionOpen] = useState(false);
+  const [replaceSolution, setReplaceSolution] = useState(false);
   const [solution, setSolution] = useState('');
   const [solutionError, setSolutionError] = useState('');
   const [solutionBusy, setSolutionBusy] = useState(false);
@@ -645,19 +646,6 @@ function Studio({
                 </section>
               </>
             )}
-            {problem && (
-              <button
-                className="learning-action solution-button"
-                onClick={() => {
-                  setComparisonSource(doc.draft);
-                  setSolution('');
-                  setSolutionError('');
-                  setSolutionOpen(true);
-                }}
-              >
-                Show Solution
-              </button>
-            )}
             <button className="change-problem" onClick={() => setLibrary(true)}>
               Browse all problems
             </button>
@@ -714,19 +702,35 @@ function Studio({
             <div className="mode-switch" role="group" aria-label="Editor mode">
               {(['blocks', 'text', 'split'] as const).map((value) => (
                 <button key={value} aria-pressed={mode === value} onClick={() => setMode(value)}>
-                  {value[0].toUpperCase() + value.slice(1)}
+                  {{ blocks: 'Blocks', text: 'Pseudocode', split: 'Split Screen' }[value]}
                 </button>
               ))}
             </div>
             <div className="edit-actions">
-              <button
-                className="learning-action"
-                disabled={!user || !doc.draft.trim()}
-                title={!user ? 'Sign in to use AI explanations' : undefined}
-                onClick={() => void explainCode('program', doc.draft)}
-              >
-                Explain Pseudocode
-              </button>
+              <div className="learning-toolbar">
+                <button
+                  className="learning-action"
+                  disabled={!user || !doc.draft.trim()}
+                  title={!user ? 'Sign in to use AI explanations' : undefined}
+                  onClick={() => void explainCode('program', doc.draft)}
+                >
+                  Explain Pseudocode
+                </button>
+                {problem && (
+                  <button
+                    className="learning-action solution-button"
+                    onClick={() => {
+                      setComparisonSource(doc.draft);
+                      setSolution('');
+                      setReplaceSolution(false);
+                      setSolutionError('');
+                      setSolutionOpen(true);
+                    }}
+                  >
+                    Show Solution
+                  </button>
+                )}
+              </div>
               <button
                 onClick={() => blocks.current?.undo()}
                 disabled={mode === 'text' || invalidText}
@@ -1186,7 +1190,38 @@ function Studio({
         title={solution ? 'Compare your approach' : 'Do you really want to see the solution?'}
       >
         {solution ? (
-          <SolutionComparison source={comparisonSource} solution={solution} />
+          <>
+            <SolutionComparison source={comparisonSource} solution={solution} />
+            <div className="solution-replace">
+              {replaceSolution ? (
+                <>
+                  <p>Replace your current program with this solution?</p>
+                  <p className="comparison-note">
+                    Your current edits will be replaced. Saved programs will auto-save this change.
+                  </p>
+                  <div className="learning-actions">
+                    <button className="learning-action" onClick={() => setReplaceSolution(false)}>
+                      Keep my program
+                    </button>
+                    <button
+                      className="learning-action"
+                      onClick={() => {
+                        update(solution);
+                        setSolutionOpen(false);
+                        setReplaceSolution(false);
+                      }}
+                    >
+                      Replace program
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button className="learning-action" onClick={() => setReplaceSolution(true)}>
+                  Use solution in my program
+                </button>
+              )}
+            </div>
+          </>
         ) : (
           <>
             <p>You can return to your program and try another idea first.</p>
@@ -1242,15 +1277,6 @@ function Studio({
       >
         {explanation && (
           <>
-            <p className="explanation-caption">
-              AI instructor · Your current {explanation.kind === 'block' ? 'block' : 'program'}
-            </p>
-            <details className="explanation-code">
-              <summary>
-                {explanation.kind === 'block' ? 'Selected block' : 'Program being explained'}
-              </summary>
-              <pre>{explanation.block ?? explanation.source}</pre>
-            </details>
             {explanation.busy ? (
               <p role="status" className="explanation-loading">
                 Reading your pseudocode…
@@ -1282,9 +1308,13 @@ function Studio({
                     ))}
                   </ol>
                 )}
-                <p className="explanation-allowance">
-                  {explanation.remaining} of 200 explanations left today · Resets at midnight UTC
-                </p>
+                <details className="explanation-details">
+                  <summary>Code and usage</summary>
+                  <pre>{explanation.block ?? explanation.source}</pre>
+                  <p className="explanation-allowance">
+                    {explanation.remaining} explanations left today · Resets at midnight UTC
+                  </p>
+                </details>
               </div>
             )}
           </>
