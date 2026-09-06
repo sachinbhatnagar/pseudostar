@@ -25,7 +25,18 @@ function harness() {
       throw new Error('Unexpected network request');
     }),
   };
-  const create = () => createDocumentController(null, 'OUTPUT "initial"', deps);
+  const create = () => {
+    const c = createDocumentController(null, 'OUTPUT "initial"', deps);
+    const start = c.start;
+    return {
+      ...c,
+      start: () => {
+        start();
+        if (c.getSnapshot().doc.named === false)
+          c.setDoc((d) => ({ ...d, title: 'My first program', named: true }));
+      },
+    };
+  };
   const c = create();
   return { values, storage, deps, create, c };
 }
@@ -153,7 +164,7 @@ describe('guest library', () => {
       h.c.start();
       expect(h.c.getSnapshot().status).toBe('Save failed');
       expect(h.values.get(GUEST_LIBRARY_KEY)).toBe(raw);
-      expect(h.values.has('pseudostar:draft:guest')).toBe(false);
+      expect(JSON.parse(h.values.get('pseudostar:draft:guest')!).named).toBe(false);
       h.c.stop();
     },
   );
@@ -249,4 +260,35 @@ describe('guest library', () => {
       }),
     ).toThrow('Device storage');
   });
+});
+
+it('guest names are unique on create, rename and restore', () => {
+  const h = harness();
+  const first = saveGuestProgram(draft('one'), undefined, h.storage);
+  expect(() =>
+    saveGuestProgram({ ...draft('two'), title: ' original ' }, undefined, h.storage),
+  ).toThrow('already uses');
+  const second = saveGuestProgram({ ...draft('two'), title: 'Another' }, undefined, h.storage);
+  expect(() =>
+    saveGuestProgram({ ...draft('two'), title: 'ORIGINAL' }, second.revision, h.storage),
+  ).toThrow('already uses');
+  deleteGuestProgram(first.id, h.storage);
+  saveGuestProgram(draft('three'), undefined, h.storage);
+  expect(() => restoreGuestProgram(first.id, h.storage)).toThrow('already uses');
+  expect(listGuestPrograms(false, h.storage)).toHaveLength(2);
+});
+
+it('repairs old duplicate guest names without losing programs or drafts', () => {
+  const h = harness();
+  const one = saveGuestProgram(draft('one'), undefined, h.storage);
+  h.values.set(
+    GUEST_LIBRARY_KEY,
+    JSON.stringify({
+      version: 1,
+      programs: [one, { ...one, id: 'two', title: 'ORIGINAL', draft: 'OUTPUT 2' }],
+    }),
+  );
+  const programs = listGuestPrograms(false, h.storage);
+  expect(new Set(programs.map((p) => p.title.toLowerCase())).size).toBe(2);
+  expect(programs.find((p) => p.id === 'two')?.draft).toBe('OUTPUT 2');
 });

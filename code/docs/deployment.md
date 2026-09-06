@@ -85,3 +85,13 @@ After authorized deployment, verify static routes, JSON API errors, response hea
 - Live HTTPS, CSP, session response and unauthenticated program rejection verified. Actual email delivery, authenticated production flows and scheduled cleanup execution remain to be verified. No test emails were sent.
 
 All 28 Chrome browser workflows passed against the deployed assets and CSP. These checks intercept authentication and persistence APIs; they do not prove live email or cloud-save behavior.
+
+## Reviewed update - 2026-09-06
+
+Worker version: `406c48b7-b204-42da-bfde-b6f6dee26962`. Includes block-edit validation, unique names, confirmed solutions, full-screen editing and deletion without automatic copies. Unnamed drafts stay outside My Programs until named.
+
+Migration `0002_unique_program_names.sql` is applied remotely. The pre-migration D1 recovery bookmark is `00000007-0000005a-000050de-d0c54fcffa22413300cbb2563af4558d`. Existing duplicate programs retain their data under distinct names. No program was deleted by this migration. A database restore must be considered separately from a Worker rollback because it can discard later writes.
+
+Production session, unauthenticated program access and the confirmed-solution endpoint were checked without sending email.
+
+All 35 browser workflows passed against this production version. Authentication and persistence calls in those tests use fixtures; the live API checks above are separate. No email was sent during deployment verification.

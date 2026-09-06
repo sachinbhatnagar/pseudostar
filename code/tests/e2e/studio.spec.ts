@@ -140,6 +140,39 @@ test('text converts to blocks and editing a block field updates executable text'
   await expect(page.getByRole('log').locator('pre')).toHaveText(['84']);
 });
 
+test('partial block fields do not interrupt typing and incomplete blocks remain editable', async ({
+  page,
+}) => {
+  await guest(page);
+  await write(page, 'OUTPUT 12');
+  await page.getByRole('button', { name: 'Split', exact: true }).click();
+  await page.locator('.blockly-host .blocklyText').filter({ hasText: /^12$/ }).click();
+  const field = page.locator('input.blocklyHtmlInput');
+  await field.fill('');
+  await expect(field).toBeFocused();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.locator('.blockly-host')).not.toHaveAttribute('inert');
+  await field.fill('7 +');
+  await field.press('Enter');
+  await expect(page.getByRole('alert')).toContainText('Line 1');
+  await expect(page.getByRole('button', { name: 'Run program', exact: true })).toBeDisabled();
+  await expect(page.locator('.invalid-overlay')).toHaveCount(0);
+  await expect(page.locator('.blockly-host')).not.toHaveAttribute('inert');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(editor(page)).toHaveText('OUTPUT 12', { useInnerText: true });
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect(editor(page)).toHaveText('OUTPUT 7 +', { useInnerText: true });
+  await page
+    .locator('.blockly-host .blocklyText')
+    .filter({ hasText: /^7\s+\+$/ })
+    .click();
+  await field.fill('7 + 5');
+  await field.press('Enter');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Run program', exact: true }).click();
+  await expect(page.getByRole('log').locator('pre')).toHaveText(['12']);
+});
+
 test('restore last valid program restores current document and never a previous document', async ({
   page,
 }) => {
@@ -305,4 +338,52 @@ test('responsive layouts stay visible without overflow and support keyboard and 
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     .toBe(true);
+});
+
+test('full screen keeps the block picker and all editor modes available', async ({ page }) => {
+  await guest(page);
+  await page.getByRole('button', { name: 'Full screen', exact: true }).click();
+  await expect(page.locator('.editor-workbench')).toHaveJSProperty(
+    'clientWidth',
+    await page.evaluate(() => innerWidth),
+  );
+  await expect(page.getByRole('button', { name: 'Exit full screen', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Blocks', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'OUTPUT Show a value', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await expect(editor(page)).toBeVisible();
+  await page.getByRole('button', { name: 'Split', exact: true }).click();
+  await expect(editor(page)).toBeVisible();
+  await expect(page.locator('.blockly-host')).toBeVisible();
+  await page.getByRole('button', { name: 'Exit full screen', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Full screen', exact: true })).toBeVisible();
+});
+
+test('solution needs confirmation and leaves the learner draft unchanged', async ({ page }) => {
+  let requests = 0;
+  await page.route('**/api/problems/*/solution', async (route) => {
+    requests++;
+    await route.fulfill({ json: { source: 'OUTPUT "Example solution"' } });
+  });
+  await guest(page);
+  await page.getByRole('button', { name: 'Choose a problem', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /The inclusive gate/ })
+    .click();
+  await page.getByRole('button', { name: 'Show Solution', exact: true }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Do you really want to see the solution?' }),
+  ).toBeVisible();
+  expect(requests).toBe(0);
+  await page.getByRole('button', { name: 'Keep thinking' }).click();
+  await page.getByRole('button', { name: 'Show Solution', exact: true }).click();
+  await page.getByRole('button', { name: 'Yes, show the solution', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('OUTPUT "Example solution"');
+  expect(requests).toBe(1);
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await expect(editor(page)).toHaveText('INPUT number', { useInnerText: true });
 });

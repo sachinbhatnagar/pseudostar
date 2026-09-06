@@ -66,7 +66,8 @@ export const BlockEditor = forwardRef<
           selection instanceof Blockly.BlockSvg && selection.workspace === ws ? selection.id : null,
         );
       }
-      if (event.isUiEvent) return;
+      // A field emits partial values while the learner is still typing.
+      if (event.isUiEvent || event.type === Blockly.Events.BLOCK_FIELD_INTERMEDIATE_CHANGE) return;
       refreshOptions(ws);
       if (invalidRef.current || syncPending.current) return;
       if (event.recordUndo && syncGroups.current.has(event.group)) return;

@@ -308,3 +308,66 @@ it('accepts 120 Unicode code points for titles and rejects 121 on create and upd
     ).status,
   ).toBe(400);
 });
+
+it('rejects duplicate names on create, rename and restore without making extra programs', async () => {
+  const a = await h.login();
+  const create = (title: string) =>
+    h.request('/api/programs', 'POST', { title, draft: 'OUTPUT 1' }, a.cookie);
+  const first = ((await (await create('My logic')).json()) as any).program;
+  const duplicates = await Promise.all([create('MY LOGIC'), create(' My logic ')]);
+  for (const response of duplicates) {
+    expect(response.status).toBe(409);
+    expect(((await response.json()) as any).error.code).toBe('NAME_TAKEN');
+  }
+  const second = ((await (await create('Another approach')).json()) as any).program;
+  expect(
+    (
+      await h.request(
+        `/api/programs/${second.id}`,
+        'PUT',
+        { title: 'my logic', draft: 'OUTPUT 2', expectedRevision: 1 },
+        a.cookie,
+      )
+    ).status,
+  ).toBe(409);
+  await h.request(`/api/programs/${first.id}`, 'DELETE', { expectedRevision: 1 }, a.cookie);
+  expect((await create('My logic')).status).toBe(201);
+  expect(
+    (
+      await h.request(
+        `/api/programs/${first.id}/restore`,
+        'POST',
+        { expectedRevision: 2 },
+        a.cookie,
+      )
+    ).status,
+  ).toBe(409);
+});
+
+it('shows a solution only after explicit confirmation and supports guests', async () => {
+  expect((await h.request('/api/problems/ref-1-1/solution', 'POST', {})).status).toBe(400);
+  const response = await h.request('/api/problems/ref-1-1/solution', 'POST', { confirmed: true });
+  expect(response.status).toBe(200);
+  expect(((await response.json()) as any).source).toContain('ENDIF');
+  expect(
+    (await h.request('/api/problems/missing/solution', 'POST', { confirmed: true })).status,
+  ).toBe(404);
+});
+
+it('migrates old duplicate names without removing saved work', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const a = await h.login();
+  await h.db.prepare('DROP INDEX programs_unique_name').run();
+  for (const title of ['Same name', 'SAME NAME']) {
+    expect(
+      (await h.request('/api/programs', 'POST', { title, draft: 'OUTPUT 7' }, a.cookie)).status,
+    ).toBe(201);
+  }
+  const sql = await readFile('migrations/0002_unique_program_names.sql', 'utf8');
+  for (const statement of sql.split(';').filter((s) => s.trim()))
+    await h.db.prepare(statement).run();
+  const result = await h.db.prepare('SELECT id,title,draft FROM programs').all();
+  expect(result.results).toHaveLength(2);
+  expect(new Set(result.results.map((p) => String(p.title).toLowerCase())).size).toBe(2);
+  expect(result.results.every((p) => p.draft === 'OUTPUT 7')).toBe(true);
+});

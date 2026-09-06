@@ -253,8 +253,6 @@
   padding: 7px;
 }
 .invalid-overlay {
-  position: absolute;
-  inset: 45px 20px auto;
   background: #ecdfcd;
   padding: 16px;
   border-radius: 6px;
@@ -1023,4 +1021,48 @@ button:disabled {
   color: #475e40;
   font-size: 13px;
   line-height: 1.6;
+}
+
+.action-icon {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+.document-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.document-actions {
+  flex-wrap: wrap;
+}
+.editor-workbench:fullscreen {
+  background: #f7f9f5;
+  overflow: auto;
+  padding: 24px;
+}
+.editor-workbench:fullscreen .editor-surfaces {
+  min-height: 65vh;
+}
+.editor-workbench:fullscreen .blockly-host {
+  min-height: 58vh;
+}
+.editor-workbench:fullscreen .block-tray {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+.editor-workbench:fullscreen .text-editor {
+  min-height: 58vh;
+}
+.editor-workbench:fullscreen .cm-editor {
+  max-height: none;
+}
+.solution-button {
+  margin-top: 20px;
+}
+.solution-source {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.7;
 }

@@ -3,7 +3,8 @@ import { requestCode, verify } from './auth';
 import { logout, session } from './sessions';
 import { cleanup, programs } from './programs';
 import { progress } from './progress';
-import { ApiError, fail } from './validation';
+import { ApiError, fail, body } from './validation';
+import { internalSolutions } from '../internal/solutions';
 async function api(request: Request, env: Env) {
   const url = new URL(request.url);
   if (!['GET', 'HEAD'].includes(request.method)) {
@@ -16,6 +17,17 @@ async function api(request: Request, env: Env) {
   if (url.pathname === '/api/auth/request-code' && request.method === 'POST')
     return requestCode(request, env);
   if (url.pathname === '/api/auth/verify' && request.method === 'POST') return verify(request, env);
+  const solutionRoute = /^\/api\/problems\/([^/]+)\/solution$/.exec(url.pathname);
+  if (solutionRoute && request.method === 'POST') {
+    const confirmation = await body(request);
+    if (confirmation.confirmed !== true)
+      fail(400, 'CONFIRM_SOLUTION', 'Confirm before viewing the solution.');
+    const source = Object.hasOwn(internalSolutions, solutionRoute[1])
+      ? internalSolutions[solutionRoute[1]]
+      : undefined;
+    if (!source) fail(404, 'NOT_FOUND', 'Solution not found.');
+    return Response.json({ source });
+  }
   const isLogout = url.pathname === '/api/auth/logout' && request.method === 'POST';
   const user = await session(request, env);
   if (url.pathname === '/api/session' && request.method === 'GET') return Response.json({ user });
@@ -45,6 +57,15 @@ export default {
     try {
       response = await api(request, env);
     } catch (error) {
+      if (
+        error instanceof Error &&
+        /UNIQUE constraint failed.*programs_unique_name/.test(error.message)
+      )
+        error = new ApiError(
+          409,
+          'NAME_TAKEN',
+          'A program already uses this name. Choose another name.',
+        );
       response =
         error instanceof ApiError
           ? Response.json(

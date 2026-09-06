@@ -1,6 +1,6 @@
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { build } from 'esbuild';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 export const origin = 'https://pseudostar.test';
 export async function harness() {
   const built = await build({
@@ -41,8 +41,13 @@ export async function harness() {
     }),
   );
   const db = await mf.getD1Database('DB');
-  const sql = await readFile('migrations/0001_initial.sql', 'utf8');
-  for (const statement of sql.split(';').filter((v) => v.trim())) await db.prepare(statement).run();
+  for (const migration of (await readdir('migrations'))
+    .filter((name) => name.endsWith('.sql'))
+    .sort()) {
+    const sql = await readFile(`migrations/${migration}`, 'utf8');
+    for (const statement of sql.split(';').filter((v) => v.trim()))
+      await db.prepare(statement).run();
+  }
   async function request(
     path: string,
     method = 'GET',

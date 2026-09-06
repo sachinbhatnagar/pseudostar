@@ -51,3 +51,9 @@ Tests run the bundled production Worker in Miniflare with real local D1. Only ou
 Coordinator must add package scripts and wire program autosave and progress. SignIn exports the AuthForm presentation used by six auth-state stories under src/auth/. Browser checks run their interaction assertions without sending email. Keep generated .storybook/build and screenshots out of commits.
 
 Before external acceptance: confirm Cloudflare account and D1 identity; replace Wrangler placeholders; apply migration; supply APP_ORIGIN and a verified RESEND_FROM; set RESEND_API_KEY and a random OTP_HMAC_SECRET through Wrangler secrets. Deploy only with authorization. Verify delivery to the authorized recipient, cookie behavior, and two-account isolation on the deployed origin. No live resource, credential, or delivery verification is claimed here.
+
+## Confirmed solutions
+
+`POST /api/problems/:id/solution` accepts `{ "confirmed": true }` and returns `{ "source": "..." }`. Guests can use it. The same-origin check applies. Missing confirmation returns 400; an unknown problem returns 404. The UI asks before making this request and keeps the current draft unchanged.
+
+Active program names must be unique for each owner. Create, rename and restore return 409 `NAME_TAKEN` on a duplicate. Renaming updates the existing program ID and revision.

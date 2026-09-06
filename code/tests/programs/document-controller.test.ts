@@ -46,6 +46,7 @@ function harness(owner: string | null = 'alice', seed?: Document) {
   const deps = { storage, request, uuid: () => `local-${++serial}` };
   const controller = createDocumentController(owner, 'initial', deps);
   controller.start();
+  if (!seed) controller.setDoc((d) => ({ ...d, title: 'My first program', named: true }));
   return { controller, storage, values, request, pending, deps };
 }
 const tick = async () => {

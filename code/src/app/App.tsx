@@ -22,6 +22,27 @@ const BlockEditor = lazy(() =>
 const TextEditor = lazy(() =>
   import('../editor/TextEditor').then((m) => ({ default: m.TextEditor })),
 );
+function ActionIcon({ kind }: { kind: 'new' | 'save' | 'copy' | 'download' | 'expand' }) {
+  const paths = {
+    new: 'M12 4v16M4 12h16',
+    save: 'M5 3h12l3 3v15H4V3h1m3 0v6h8V3M8 21v-8h8v8',
+    copy: 'M8 8h12v13H8V8M16 5V2H3v15h2',
+    download: 'M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4',
+    expand: 'M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6',
+  };
+  return (
+    <svg className="action-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d={paths[kind]}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 function Brand() {
   return (
     <a className="brand" href="/" aria-label="PseudoStar home">
@@ -46,7 +67,7 @@ function Modal({
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
+      <Dialog.Portal container={globalThis.document.fullscreenElement as HTMLElement | null}>
         <Dialog.Overlay className="modal-overlay" />
         <Dialog.Content className="modal">
           <div className="modal-heading">
@@ -130,6 +151,97 @@ function Studio({
   const document = useDocument(user, 'OUTPUT "What will you build today?"'),
     { doc, setDoc, status, error } = document;
   const [leaving, setLeaving] = useState(false);
+  const [naming, setNaming] = useState<'copy' | 'edit' | 'save' | null>(null);
+  const [newName, setNewName] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [nameBusy, setNameBusy] = useState(false);
+  const namingProgram = useRef<SavedProgram | null>(null);
+  const namingApplied = useRef(false);
+  const namingOriginal = useRef('');
+  const beginCopy = () => {
+    namingProgram.current = null;
+    namingApplied.current = false;
+    namingOriginal.current = doc.title;
+    setNewName('');
+    setNameError('');
+    setNaming('copy');
+  };
+  const beginEdit = (program: SavedProgram) => {
+    namingProgram.current = program;
+    namingApplied.current = false;
+    namingOriginal.current = program.title;
+    setNewName('');
+    setNameError('');
+    setNaming('edit');
+  };
+  const saveNamed = async () => {
+    const title = newName.trim();
+    if (!title || Array.from(title).length > 120) {
+      setNameError('Use a name with 1 to 120 characters.');
+      return;
+    }
+    if (title.toLowerCase() === namingOriginal.current.trim().toLowerCase()) {
+      setNameError('Choose a different name.');
+      return;
+    }
+    setNameBusy(true);
+    setNameError('');
+    try {
+      const programs = user
+        ? (await scopedApi<{ programs: SavedProgram[] }>('/programs')).programs
+        : listGuestPrograms();
+      const excludeId = namingApplied.current
+        ? user
+          ? doc.id
+          : doc.localId
+        : naming === 'edit'
+          ? namingProgram.current?.id
+          : undefined;
+      if (
+        programs.some(
+          (p) => p.id !== excludeId && p.title.trim().toLowerCase() === title.toLowerCase(),
+        )
+      ) {
+        setNameError('A program already uses this name. Choose another name.');
+        return;
+      }
+      if (!namingApplied.current) {
+        if (naming === 'edit' && namingProgram.current) {
+          await document.load(namingProgram.current);
+          setDoc((value) => ({ ...value, title }));
+          runner.reset();
+        } else if (naming === 'save') setDoc((value) => ({ ...value, title, named: true }));
+        else document.copy(title);
+        namingApplied.current = true;
+      } else setDoc((value) => ({ ...value, title }));
+      await document.save();
+      setNaming(null);
+    } catch (e) {
+      setNameError((e as Error).message);
+    } finally {
+      setNameBusy(false);
+    }
+  };
+
+  const workbench = useRef<HTMLElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [solutionOpen, setSolutionOpen] = useState(false);
+  const [solution, setSolution] = useState('');
+  const [solutionError, setSolutionError] = useState('');
+  const [solutionBusy, setSolutionBusy] = useState(false);
+  useEffect(() => {
+    const changed = () => setExpanded(globalThis.document.fullscreenElement === workbench.current);
+    globalThis.document.addEventListener('fullscreenchange', changed);
+    return () => globalThis.document.removeEventListener('fullscreenchange', changed);
+  }, []);
+  const toggleFullscreen = async () => {
+    try {
+      if (globalThis.document.fullscreenElement) await globalThis.document.exitFullscreen();
+      else await workbench.current?.requestFullscreen();
+    } catch {
+      setMessage('Full screen is unavailable in this browser.');
+    }
+  };
   const scopedApi = <T,>(path: string, options: RequestInit = {}) =>
     api<T>(path, {
       ...options,
@@ -159,6 +271,10 @@ function Studio({
     checkTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const runner = useRunner();
   const parsed = useMemo(() => parse(doc.draft), [doc.draft]);
+  const blockDraft = useRef<{ id: string; source: string } | null>(null);
+  const invalidText =
+    !parsed.ok &&
+    !(blockDraft.current?.id === doc.localId && blockDraft.current.source === doc.draft);
   const problem = catalog.find((p) => p.id === doc.problemId);
   const currentHints = problem ? (hints[problem.id] ?? 0) : 0;
   const lastValid = useRef({
@@ -215,6 +331,7 @@ function Studio({
   }, []);
   const update = (source: string) => {
     if (leaving) return;
+    blockDraft.current = null;
     setDoc((value) => ({
       ...value,
       draft: source,
@@ -229,8 +346,18 @@ function Studio({
       setMessage((e as Error).message);
     }
   };
+  const freshProgram = async (title: string, source: string, problemId: string | null) => {
+    const programs = user
+      ? (await scopedApi<{ programs: SavedProgram[] }>('/programs')).programs
+      : listGuestPrograms();
+    const names = new Set(programs.map((p) => p.title.trim().toLowerCase()));
+    let candidate = title,
+      number = 2;
+    while (names.has(candidate.toLowerCase())) candidate = `${title.slice(0, 110)} (${number++})`;
+    await document.fresh(candidate, source, problemId);
+  };
   const choose = async (p: Problem) => {
-    await document.fresh(p.title, p.starter, p.id);
+    await freshProgram(p.title, p.starter, p.id);
     runner.reset();
     setResults(null);
     setLibrary(false);
@@ -440,29 +567,68 @@ function Studio({
                 </section>
               </>
             )}
+            {problem && (
+              <button
+                className="solution-button"
+                onClick={() => {
+                  setSolution('');
+                  setSolutionError('');
+                  setSolutionOpen(true);
+                }}
+              >
+                Show Solution
+              </button>
+            )}
             <button className="change-problem" onClick={() => setLibrary(true)}>
               Browse all problems
             </button>
           </div>
         </aside>
-        <section className="editor-workbench">
+        <section className="editor-workbench" ref={workbench}>
           <div className="document-heading">
             <input
               aria-label="Program name"
               maxLength={120}
               value={doc.title}
-              onChange={(e) => setDoc((v) => ({ ...v, title: e.target.value }))}
+              placeholder="Name your program"
+              onChange={(e) =>
+                setDoc((v) => ({
+                  ...v,
+                  title: e.target.value,
+                  named: Boolean(e.target.value.trim()),
+                }))
+              }
             />
             <div className="document-actions">
               <button
-                onClick={() =>
-                  void perform(() => document.fresh('Untitled program', 'OUTPUT "Hello"', null))
-                }
+                onClick={() => void perform(() => document.fresh('', 'OUTPUT "Hello"', null))}
               >
+                <ActionIcon kind="new" />
                 New
               </button>
-              <button onClick={document.copy}>Save copy</button>
-              <button onClick={download}>Download</button>
+              <button
+                onClick={() => {
+                  if (doc.named === false || !doc.title.trim()) {
+                    beginCopy();
+                    setNaming('save');
+                  } else void perform(document.save);
+                }}
+              >
+                <ActionIcon kind="save" />
+                Save now
+              </button>
+              <button onClick={beginCopy}>
+                <ActionIcon kind="copy" />
+                Save copy
+              </button>
+              <button onClick={download}>
+                <ActionIcon kind="download" />
+                Download
+              </button>
+              <button onClick={() => void toggleFullscreen()} aria-pressed={expanded}>
+                <ActionIcon kind="expand" />
+                {expanded ? 'Exit full screen' : 'Full screen'}
+              </button>
             </div>
           </div>
           <div className="editor-toolbar">
@@ -476,13 +642,13 @@ function Studio({
             <div className="edit-actions">
               <button
                 onClick={() => blocks.current?.undo()}
-                disabled={mode === 'text' || !parsed.ok}
+                disabled={mode === 'text' || invalidText}
               >
                 Undo
               </button>
               <button
                 onClick={() => blocks.current?.redo()}
-                disabled={mode === 'text' || !parsed.ok}
+                disabled={mode === 'text' || invalidText}
               >
                 Redo
               </button>
@@ -512,8 +678,11 @@ function Studio({
                   key={doc.localId}
                   ref={blocks}
                   source={doc.draft}
-                  onChange={update}
-                  invalid={!parsed.ok}
+                  onChange={(source) => {
+                    update(source);
+                    blockDraft.current = { id: doc.localId, source };
+                  }}
+                  invalid={invalidText}
                   lastValidSource={doc.lastValidSource}
                   activeLine={active ? runner.line : undefined}
                   diagnosticLine={diagnosticLine}
@@ -693,15 +862,14 @@ function Studio({
           )}
           <footer className="workspace-status">
             <span role="status">{status}</span>
-            <button onClick={() => void perform(document.save)}>Save now</button>
-            <span>{user ? 'Private to your account' : 'Guest session · this device only'}</span>
+            {!user && <span>Guest session · this device only</span>}
           </footer>
           {(error || message) && (
             <div className="diagnostic" role="alert">
               {message || error}
               {status === 'Conflict' && (
                 <>
-                  <button onClick={document.copy}>Keep my changes as a copy</button>
+                  <button onClick={beginCopy}>Keep my changes as a copy</button>
                   <button
                     onClick={() =>
                       void perform(async () => {
@@ -820,9 +988,8 @@ function Studio({
                       const program = user
                         ? (await scopedApi<{ program: SavedProgram }>(`/programs/${p.id}`)).program
                         : getGuestProgram(p.id);
-                      await document.load(program);
                       setSavedOpen(false);
-                      runner.reset();
+                      beginEdit(program);
                     })
                   }
                 >
@@ -839,7 +1006,10 @@ function Studio({
                         });
                       else if (trash) restoreGuestProgram(p.id);
                       else deleteGuestProgram(p.id);
-                      if (!trash && (user ? doc.id : doc.localId) === p.id) document.copy();
+                      if (!trash) {
+                        document.discardDeleted(p.id);
+                        runner.reset();
+                      }
                       await listSaved();
                     })
                   }
@@ -871,12 +1041,89 @@ function Studio({
         <button
           className="primary"
           onClick={() => {
-            document.copy();
+            beginCopy();
             setConflictCloud(null);
           }}
         >
           Keep my changes as a copy
         </button>
+      </Modal>
+      <Modal
+        open={naming !== null}
+        onOpenChange={(open) => {
+          if (!open && !nameBusy) setNaming(null);
+        }}
+        title="Save with a different name"
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void saveNamed();
+          }}
+        >
+          <label htmlFor="copy-name">New program name</label>
+          <input
+            id="copy-name"
+            autoFocus
+            maxLength={120}
+            value={newName}
+            disabled={nameBusy}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <p>
+            {naming === 'edit'
+              ? 'This renames your saved program. Later changes update the same entry.'
+              : 'Later changes will save to this same copy.'}
+          </p>
+          {nameError && <p role="alert">{nameError}</p>}
+          <button type="button" disabled={nameBusy} onClick={() => setNaming(null)}>
+            Cancel
+          </button>
+          <button type="submit" disabled={nameBusy}>
+            {nameBusy ? 'Saving…' : 'Save program'}
+          </button>
+        </form>
+      </Modal>
+      <Modal
+        open={solutionOpen}
+        onOpenChange={setSolutionOpen}
+        title={solution ? 'One way to solve it' : 'Do you really want to see the solution?'}
+      >
+        {solution ? (
+          <>
+            <p>Compare the steps with your own approach.</p>
+            <pre className="solution-source">{solution}</pre>
+          </>
+        ) : (
+          <>
+            <p>You can return to your program and try another idea first.</p>
+            <button disabled={solutionBusy} onClick={() => setSolutionOpen(false)}>
+              Keep thinking
+            </button>
+            <button
+              disabled={solutionBusy}
+              onClick={async () => {
+                if (!problem) return;
+                setSolutionBusy(true);
+                setSolutionError('');
+                try {
+                  const result = await api<{ source: string }>(`/problems/${problem.id}/solution`, {
+                    method: 'POST',
+                    body: JSON.stringify({ confirmed: true }),
+                  });
+                  setSolution(result.source);
+                } catch (e) {
+                  setSolutionError((e as Error).message);
+                } finally {
+                  setSolutionBusy(false);
+                }
+              }}
+            >
+              {solutionBusy ? 'Opening solution…' : 'Yes, show the solution'}
+            </button>
+            {solutionError && <p role="alert">{solutionError}</p>}
+          </>
+        )}
       </Modal>
       <Modal open={help} onOpenChange={setHelp} title="A little help with your logic">
         <div className="help-copy">

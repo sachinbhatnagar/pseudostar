@@ -1,4 +1,11 @@
 import { test, expect, editor, guest, write, signIn, saveStatus } from './fixtures';
+import type { Page } from '@playwright/test';
+async function nameProgram(page: Page, title: string) {
+  const naming = page.getByRole('dialog', { name: 'Save with a different name' });
+  await naming.getByRole('textbox', { name: 'New program name' }).fill(title);
+  await naming.getByRole('button', { name: 'Save program', exact: true }).click();
+  await expect(naming).not.toBeVisible();
+}
 
 test('OTP errors use nested API messages; a valid code opens the signed-in studio', async ({
   page,
@@ -62,7 +69,7 @@ test('new programs save independently and a saved program loads from the library
   await page.getByRole('button', { name: 'Save now' }).click();
   await expect(saveStatus(page)).toHaveText('Saved');
   await page.getByRole('button', { name: 'New', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: 'Program name' })).toHaveValue('Untitled program');
+  await expect(page.getByRole('textbox', { name: 'Program name' })).toHaveValue('');
   await write(page, 'OUTPUT "second"');
   await page.getByRole('textbox', { name: 'Program name' }).fill('Second program');
   await page.getByRole('button', { name: 'Save now' }).click();
@@ -74,9 +81,12 @@ test('new programs save independently and a saved program loads from the library
   await page.getByRole('button', { name: 'My programs', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'My programs' });
   await dialog.getByRole('button', { name: 'First program', exact: true }).click();
+  await nameProgram(page, 'First program revised');
   await expect(dialog).not.toBeVisible();
   await expect(editor(page)).toHaveText('OUTPUT "first"', { useInnerText: true });
-  await expect(page.getByRole('textbox', { name: 'Program name' })).toHaveValue('First program');
+  await expect(page.getByRole('textbox', { name: 'Program name' })).toHaveValue(
+    'First program revised',
+  );
   await expect(saveStatus(page)).toHaveText('Saved');
 });
 
@@ -131,6 +141,7 @@ test('conflict preserves the remote program and saves local edits as a copy', as
   ).toBeVisible();
   await comparison.getByRole('button', { name: 'Keep my changes as a copy', exact: true }).click();
   await expect(comparison).not.toBeVisible();
+  await nameProgram(page, 'My conflict copy');
   await expect(saveStatus(page)).toHaveText('Saved');
   expect(api.programs.size).toBe(2);
   expect(api.programs.get(remote.id)?.program.draft).toBe('OUTPUT "other tab"');
@@ -203,6 +214,7 @@ test('saved-program search is case-insensitive, handles no match, and opens a re
   await expect(dialog.locator('.saved-row')).toHaveCount(2);
   await search.fill('bEtA');
   await dialog.getByRole('button', { name: 'Beta loops', exact: true }).click();
+  await nameProgram(page, 'Beta loops revised');
   await expect(dialog).not.toBeVisible();
   await expect(editor(page)).toHaveText('OUTPUT "Beta loops"', { useInnerText: true });
   expect(api.programs.size).toBe(2);
@@ -219,6 +231,7 @@ test('copy clips a maximum-length title and saves as a new revision-1 program', 
   await expect(saveStatus(page)).toHaveText('Saved');
   const previousIds = new Set(api.programs.keys());
   await page.getByRole('button', { name: 'Save copy', exact: true }).click();
+  await nameProgram(page, 'A'.repeat(115) + ' copy');
   await expect(page.getByRole('textbox', { name: 'Program name' })).toHaveValue(
     'A'.repeat(115) + ' copy',
   );
@@ -253,6 +266,7 @@ test('cloud save and load retain recovery source for an invalid draft after relo
     .getByRole('dialog', { name: 'My programs' })
     .getByRole('button', { name: 'Recoverable draft', exact: true })
     .click();
+  await nameProgram(page, 'Recoverable draft revised');
   await expect(editor(page)).toHaveText('OUTPUT "unfinished');
   await expect(
     page.getByRole('button', { name: 'Restore last valid program', exact: true }),
@@ -320,17 +334,18 @@ test('immediate reopen flushes edits before fetching the current program', async
   release();
   const dialog = page.getByRole('dialog', { name: 'My programs' });
   await dialog.getByRole('button', { name: 'Reopen current', exact: true }).click();
+  await nameProgram(page, 'Reopen current revised');
   await expect(dialog).not.toBeVisible();
   await expect(editor(page)).toHaveText('OUTPUT "latest before reopen"');
   await expect(saveStatus(page)).toHaveText('Saved');
   const requests = api.requests
     .slice(cursor)
     .filter((request) => request.path.startsWith('/programs'));
-  expect(requests.map((request) => request.method)).toEqual(['PUT', 'GET', 'GET']);
+  expect(requests.map((request) => request.method)).toEqual(['PUT', 'GET', 'GET', 'GET', 'PUT']);
   expect([...api.programs.values()][0].program.draft).toBe('OUTPUT "latest before reopen"');
 });
 
-test('delete moves a program to trash, preserves current work as a copy, and restore reopens it', async ({
+test('delete moves a program to trash without creating a copy, and restore reopens it', async ({
   page,
   api,
 }) => {
@@ -353,7 +368,7 @@ test('delete moves a program to trash, preserves current work as a copy, and res
   ).toHaveCount(0);
   await expect(
     dialog.getByRole('button', { name: 'Restore this program copy', exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   expect(api.programs.get(original.id)?.program).toMatchObject({
     revision: original.revision + 1,
     deletedAt: expect.any(Number),
@@ -366,10 +381,11 @@ test('delete moves a program to trash, preserves current work as a copy, and res
   await expect(dialog.getByText('No deleted programs.', { exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: 'Show active programs', exact: true }).click();
   await dialog.getByRole('button', { name: 'Restore this program', exact: true }).click();
+  await nameProgram(page, 'Restore this program revised');
   await expect(dialog).not.toBeVisible();
   await expect(editor(page)).toHaveText('OUTPUT "recover from trash"');
   expect(api.programs.get(original.id)?.program).toMatchObject({
-    revision: original.revision + 2,
+    revision: original.revision + 3,
     deletedAt: null,
   });
   expect(api.requests).toContainEqual({ method: 'DELETE', path: `/programs/${original.id}` });
@@ -444,11 +460,13 @@ test('guest library keeps programs across New, challenge switches, and reload', 
   await dialog.getByRole('textbox', { name: 'Search saved programs' }).fill('FIRST');
   await expect(dialog.locator('.saved-row')).toHaveCount(1);
   await dialog.getByRole('button', { name: 'Guest first', exact: true }).click();
+  await nameProgram(page, 'Guest first revised');
   await expect(editor(page)).toHaveText('OUTPUT "first local program"');
   await page.reload();
   await expect(editor(page)).toHaveText('OUTPUT "first local program"');
   await page.getByRole('button', { name: 'My programs', exact: true }).click();
   await dialog.getByRole('button', { name: 'Guest second', exact: true }).click();
+  await nameProgram(page, 'Guest second revised');
   await expect(editor(page)).toHaveText('OUTPUT "second local program"');
   expect(api.saves).toEqual([]);
   expect(api.requests.every((request) => request.path === '/session')).toBe(true);
@@ -471,13 +489,14 @@ test('guest delete and restore preserve local programs without cloud requests', 
   await expect(dialog.getByRole('button', { name: 'Guest recovery', exact: true })).toHaveCount(0);
   await expect(
     dialog.getByRole('button', { name: 'Guest recovery copy', exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Recently deleted', exact: true }).click();
   await expect(dialog.getByRole('button', { name: 'Guest recovery', exact: true })).toBeDisabled();
   await dialog.getByRole('button', { name: 'Restore', exact: true }).click();
   await expect(dialog.getByText('No deleted programs.', { exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: 'Show active programs', exact: true }).click();
   await dialog.getByRole('button', { name: 'Guest recovery', exact: true }).click();
+  await nameProgram(page, 'Guest recovery revised');
   await expect(editor(page)).toHaveText('OUTPUT "local recovery"');
   await page.reload();
   await expect(editor(page)).toHaveText('OUTPUT "local recovery"');
@@ -500,11 +519,10 @@ test('a failed list refresh after deletion cannot make later saves target the de
   await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(dialog.getByRole('alert')).toHaveText('The program list is unavailable.');
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: 'Program name' })).toHaveValue(
-    'Delete safely copy',
-  );
+  await expect(page.getByRole('textbox', { name: 'Program name' })).toHaveValue('');
   const cursor = api.saves.length;
   await write(page, 'OUTPUT "edited safe copy"');
+  await page.getByRole('textbox', { name: 'Program name' }).fill('Fresh after deletion');
   await page.getByRole('button', { name: 'Save now' }).click();
   await expect(saveStatus(page)).toHaveText('Saved');
   expect(api.saves.slice(cursor).every((call) => call.path !== `/programs/${deletedId}`)).toBe(
@@ -513,3 +531,93 @@ test('a failed list refresh after deletion cannot make later saves target the de
   expect(api.saves.at(-1)?.body.draft).toBe('OUTPUT "edited safe copy"');
   expect(api.programs.get(deletedId)?.program.deletedAt).not.toBeNull();
 });
+
+test('renaming an existing program preserves its identity and autosaves only one entry', async ({
+  page,
+  api,
+}) => {
+  await page.goto('/');
+  await signIn(page);
+  await page.getByRole('textbox', { name: 'Program name' }).fill('Original');
+  await page.getByRole('button', { name: 'Save now', exact: true }).click();
+  await expect(saveStatus(page)).toHaveText('Saved');
+  const id = [...api.programs.keys()][0];
+  await page.getByRole('button', { name: 'My programs', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'My programs' })
+    .getByRole('button', { name: 'Original', exact: true })
+    .click();
+  const naming = page.getByRole('dialog', { name: 'Save with a different name' });
+  await naming.getByRole('textbox', { name: 'New program name' }).fill(' original ');
+  await naming.getByRole('button', { name: 'Save program', exact: true }).click();
+  await expect(naming.getByRole('alert')).toHaveText('Choose a different name.');
+  expect(api.programs.size).toBe(1);
+  await nameProgram(page, 'My revised logic');
+  for (const source of ['OUTPUT 2', 'OUTPUT 3']) {
+    await write(page, source);
+    await expect(saveStatus(page)).toHaveText('Saved');
+    expect(api.programs.size).toBe(1);
+    expect(api.programs.get(id)?.program).toMatchObject({
+      title: 'My revised logic',
+      draft: source,
+    });
+  }
+});
+
+test('named copies reject duplicate names and further edits update the same copy', async ({
+  page,
+  api,
+}) => {
+  await page.goto('/');
+  await signIn(page);
+  await page.getByRole('button', { name: 'Save now', exact: true }).click();
+  await expect(saveStatus(page)).toHaveText('Saved');
+  await page.getByRole('button', { name: 'Save copy', exact: true }).click();
+  await nameProgram(page, 'One copy');
+  await write(page, 'OUTPUT 8');
+  await expect(saveStatus(page)).toHaveText('Saved');
+  expect(api.programs.size).toBe(2);
+  await page.getByRole('button', { name: 'Save copy', exact: true }).click();
+  const naming = page.getByRole('dialog', { name: 'Save with a different name' });
+  await naming.getByRole('textbox', { name: 'New program name' }).fill('MY FIRST PROGRAM');
+  await naming.getByRole('button', { name: 'Save program', exact: true }).click();
+  await expect(naming.getByRole('alert')).toContainText('already uses this name');
+  expect(api.programs.size).toBe(2);
+});
+
+for (const signedIn of [false, true]) {
+  test(`unnamed drafts stay outside the library and deleting creates no copies (${signedIn ? 'account' : 'guest'})`, async ({
+    page,
+    api,
+  }) => {
+    await page.goto('/');
+    if (signedIn) {
+      await page.getByRole('textbox', { name: 'Email address' }).fill('alice@example.test');
+      await page.getByRole('button', { name: 'Email me a code', exact: true }).click();
+      await page.getByRole('textbox', { name: 'Sign-in code' }).fill('123456');
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    } else
+      await page.getByRole('button', { name: 'Try a practice session without signing in' }).click();
+    await write(page, 'OUTPUT 42');
+    await page.getByRole('button', { name: 'My programs', exact: true }).click();
+    const library = page.getByRole('dialog', { name: 'My programs' });
+    await expect(library.locator('.saved-row')).toHaveCount(0);
+    await library.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.reload();
+    await expect(editor(page)).toHaveText('OUTPUT 42');
+    await page.getByRole('button', { name: 'Save now', exact: true }).click();
+    await nameProgram(page, 'Named once');
+    await page.getByRole('button', { name: 'My programs', exact: true }).click();
+    await expect(library.locator('.saved-row')).toHaveCount(1);
+    await library.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(library.locator('.saved-row')).toHaveCount(0);
+    await library.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.getByRole('button', { name: 'New', exact: true }).click();
+    await write(page, 'OUTPUT 99');
+    await page.getByRole('button', { name: 'My programs', exact: true }).click();
+    await expect(library.locator('.saved-row')).toHaveCount(0);
+    await library.getByRole('button', { name: 'Recently deleted', exact: true }).click();
+    await expect(library.locator('.saved-row')).toHaveCount(1);
+    if (signedIn) expect(api.programs.size).toBe(1);
+  });
+}

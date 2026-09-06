@@ -2,6 +2,7 @@ import { ApiError, type SavedProgram } from './api';
 import { saveGuestProgram } from './local-library';
 
 export type Document = {
+  named?: boolean;
   localId: string;
   id?: string;
   title: string;
@@ -27,6 +28,7 @@ function isDocument(value: unknown): value is Document {
     typeof d.localId === 'string' &&
     d.localId.length > 0 &&
     typeof d.title === 'string' &&
+    (d.named === undefined || typeof d.named === 'boolean') &&
     typeof d.draft === 'string' &&
     (d.lastValidSource === undefined || typeof d.lastValidSource === 'string') &&
     (d.problemId === null || typeof d.problemId === 'string') &&
@@ -48,7 +50,8 @@ export function createDocumentController(
   const key = 'pseudostar:draft:' + (owner ?? 'guest');
   let doc: Document = {
     localId: deps.uuid(),
-    title: 'My first program',
+    title: '',
+    named: false,
     draft: initial,
     lastValidSource: initial,
     problemId: null,
@@ -95,7 +98,7 @@ export function createDocumentController(
         throw new Error(
           'The saved guest draft could not be restored. Its stored data was kept. Download your work before repairing device storage.',
         );
-      if (!owner) {
+      if (!owner && doc.named !== false && doc.title.trim()) {
         const archived = saveGuestProgram(doc, doc.localRevision, deps.storage);
         doc = {
           ...doc,
@@ -115,12 +118,14 @@ export function createDocumentController(
   };
   const settledStatus = () => {
     if (conflict) return 'Conflict';
+    if (doc.named === false || !doc.title.trim())
+      return localError ? 'Save failed' : 'Unsaved draft';
     if (!owner) return localError ? 'Save failed' : 'Saved on this device';
     return dirty() ? 'Local draft' : localError ? 'Saved to cloud' : 'Saved';
   };
   const schedule = () => {
     clearTimeout(timer);
-    if (active && owner && dirty() && !conflict) {
+    if (active && owner && doc.named !== false && doc.title.trim() && dirty() && !conflict) {
       timer = setTimeout(() => {
         void save().catch(() => {});
       }, 1000);
@@ -139,7 +144,7 @@ export function createDocumentController(
     if (!active) return Promise.reject(new Error('This document is no longer active.'));
     clearTimeout(timer);
     persist();
-    if (!owner) {
+    if (!owner || doc.named === false || !doc.title.trim()) {
       status = settledStatus();
       emit();
       return localError ? Promise.reject(new Error(localError)) : Promise.resolve();
@@ -158,7 +163,7 @@ export function createDocumentController(
     const generation = epoch;
     // Defer work until flight is assigned, including when request throws synchronously.
     const request = Promise.resolve().then(async () => {
-      while (active && epoch === generation && dirty()) {
+      while (active && epoch === generation && doc.named !== false && doc.title.trim() && dirty()) {
         const current = doc,
           mark = signature(current);
         status = 'Saving…';
@@ -168,7 +173,7 @@ export function createDocumentController(
           const result = await deps.request(current.id ? `/programs/${current.id}` : '/programs', {
             method: current.id ? 'PUT' : 'POST',
             body: JSON.stringify({
-              title: current.title || 'Untitled program',
+              title: current.title.trim(),
               draft: current.draft,
               problemId: current.problemId,
               lastValidSource: current.lastValidSource,
@@ -190,7 +195,9 @@ export function createDocumentController(
           if (
             cause instanceof ApiError &&
             cause.status === 409 &&
-            (cause.data.error as { code?: string } | undefined)?.code !== 'ACCOUNT_CHANGED'
+            !['ACCOUNT_CHANGED', 'NAME_TAKEN'].includes(
+              (cause.data.error as { code?: string } | undefined)?.code ?? '',
+            )
           )
             conflict = error;
           status = conflict
@@ -258,7 +265,7 @@ export function createDocumentController(
       switchVersion++;
       clearTimeout(timer);
     },
-    hasUnsavedChanges: () => (owner ? dirty() : Boolean(localError)),
+    hasUnsavedChanges: () => (owner && doc.named !== false ? dirty() : Boolean(localError)),
     setDoc,
     save,
     fresh: (title: string, draft: string, problemId: string | null) =>
@@ -266,6 +273,7 @@ export function createDocumentController(
         () => ({
           localId: deps.uuid(),
           title,
+          named: Boolean(title.trim()),
           draft,
           lastValidSource: draft,
           problemId,
@@ -279,6 +287,7 @@ export function createDocumentController(
           localId: owner ? deps.uuid() : program.id,
           id: program.id,
           title: program.title,
+          named: true,
           draft: program.draft,
           lastValidSource: program.lastValidSource ?? undefined,
           problemId: program.problemId,
@@ -287,7 +296,7 @@ export function createDocumentController(
         }),
         true,
       ),
-    copy: () => {
+    copy: (title?: string) => {
       if (!active) return;
       switchVersion++;
       saved = '';
@@ -299,7 +308,25 @@ export function createDocumentController(
         id: undefined,
         revision: 0,
         localRevision: undefined,
-        title: doc.title.slice(0, 115) + ' copy',
+        title: title ?? doc.title.slice(0, 115) + ' copy',
+        named: true,
+      });
+    },
+    discardDeleted: (id: string) => {
+      if ((owner ? doc.id : doc.localId) !== id) return;
+      switchVersion++;
+      clearTimeout(timer);
+      conflict = null;
+      cloudError = '';
+      saved = '';
+      setDoc({
+        localId: deps.uuid(),
+        title: '',
+        named: false,
+        draft: '',
+        lastValidSource: '',
+        problemId: null,
+        revision: 0,
       });
     },
   };

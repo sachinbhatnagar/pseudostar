@@ -14,7 +14,7 @@
     "test:e2e": "playwright test",
     "storybook": "storybook dev -p 6006 --disable-telemetry",
     "build-storybook": "storybook build --output-dir .storybook/build --disable-telemetry",
-    "dev:api": "wrangler dev --port 8787 --var APP_ORIGIN:http://127.0.0.1:5173",
+    "dev:api": "wrangler dev --port 8787 --local-upstream 127.0.0.1:5173 --upstream-protocol http --var APP_ORIGIN:http://127.0.0.1:5173",
     "db:local": "wrangler d1 migrations apply pseudostar --local",
     "deploy": "node scripts/deploy.mjs",
     "format": "prettier --write src worker emails tests scripts .storybook *.ts *.json *.jsonc *.md",

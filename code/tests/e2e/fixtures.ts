@@ -241,6 +241,8 @@ export async function guest(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Try a practice session without signing in' }).click();
   await expect(page.getByRole('textbox', { name: 'Program name' })).toBeVisible();
+  if (!(await page.getByRole('textbox', { name: 'Program name' }).inputValue()))
+    await page.getByRole('textbox', { name: 'Program name' }).fill('My first program');
 }
 export async function write(page: Page, source: string) {
   await page.getByRole('button', { name: 'Text', exact: true }).click();
@@ -253,4 +255,6 @@ export async function signIn(page: Page, email = 'alice@example.test') {
   await page.getByRole('textbox', { name: 'Sign-in code' }).fill('123456');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
+  if (!(await page.getByRole('textbox', { name: 'Program name' }).inputValue()))
+    await page.getByRole('textbox', { name: 'Program name' }).fill('My first program');
 }

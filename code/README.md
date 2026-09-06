@@ -34,23 +34,31 @@ Guest sessions keep a separate local program library, including delete and resto
 
 ## Local development
 
+Set `APP_ORIGIN=http://127.0.0.1:5173` in local `.dev.vars`. Keep credentials outside source control.
+
 ```sh
-cp .dev.vars.example .dev.vars
-node node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --local
+npm run db:local
 npm run build
-node node_modules/wrangler/bin/wrangler.js dev --ip 127.0.0.1 --port 8787 --var APP_ORIGIN:http://127.0.0.1:8787
+npm run dev:api
 ```
 
-Open `http://127.0.0.1:8787`. Keep the origin exact: localhost and 127.0.0.1 differ. Without secrets, sign-in cannot complete. Leave the Resend key empty until delivery is authorized. Local Wrangler can send real email if given a real key.
+Run `npm run dev` in a second terminal and open `http://127.0.0.1:5173`. The API script sets an explicit local upstream so the production custom domain does not affect local origin checks. If the Vite port changes, update the local origin and upstream together. Local Wrangler sends real email when given a real Resend key. Do not use `--remote` for local work.
 
-For hot reload, run `npm run dev` in a second terminal and restart Wrangler with `--var APP_ORIGIN:http://127.0.0.1:5173`. Open that exact Vite origin. The Vite proxy sends `/api` to port 8787. If Vite's port changes, update APP_ORIGIN too. Do not use `--remote` for local work.
+## Current behavior
+
+- Unnamed drafts stay in device recovery only. Save now asks for a name. Deleting the open program clears the editor without creating a copy.
+- Opening a saved program asks for a different name, then updates that same entry. Explicit Save copy asks for an unused name.
+- Active program names are unique per account and in the guest library. Migration `0002_unique_program_names.sql` retains old duplicates under distinct names. It is applied to the production database.
+- Show Solution requires confirmation. Answers come from the Worker and never replace the learner's draft.
+- The top toolbar includes Save now and icons. Full screen retains the block picker and all editor modes.
+- Incomplete block edits remain editable. Field validation waits for the edit to finish.
 
 ## Verified locally - 2026-09-06
 
 - TypeScript checks and production build pass.
-- 300 unit/content/editor/runner/recovery tests pass.
-- 23 Worker/D1 integration tests pass with intercepted email delivery.
-- 28 Chrome browser workflows pass with isolated API fixtures, including desktop, tablet, phone, keyboard and reduced motion.
+- 302 unit/content/editor/runner/recovery tests pass.
+- 26 Worker/D1 integration tests pass with intercepted email delivery.
+- 35 Chrome browser workflows pass with isolated API fixtures, including desktop, tablet, phone, keyboard and reduced motion.
 - Four deployment-preflight tests pass. Worker bundling passes Wrangler dry-run.
 - Storybook builds; four email frames and six sign-in interaction stories pass browser checks.
 - The client bundle contains no private model-answer imports or server secret names.

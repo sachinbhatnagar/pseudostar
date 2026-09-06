@@ -58,6 +58,27 @@ function read(storage: GuestStorage): Library {
       new Set(data.programs.map((p) => p.id)).size !== data.programs.length
     )
       throw new Error();
+    const used = new Set(
+      data.programs.filter((p) => p.deletedAt === null).map((p) => nameKey(p.title)),
+    );
+    const seen = new Set<string>();
+    let repaired = false;
+    for (const program of data.programs) {
+      if (program.deletedAt !== null) continue;
+      const key = nameKey(program.title);
+      if (seen.has(key)) {
+        let number = 2;
+        let title: string;
+        do {
+          title = `${Array.from(program.title.trim()).slice(0, 105).join('')} (${number++})`;
+        } while (used.has(nameKey(title)));
+        program.title = title;
+        used.add(nameKey(title));
+        repaired = true;
+      }
+      seen.add(nameKey(program.title));
+    }
+    if (repaired) write(storage, data);
     return data;
   } catch {
     throw new Error(corrupt);
@@ -74,6 +95,17 @@ function nextRevision(program: GuestProgram) {
   if (program.revision >= Number.MAX_SAFE_INTEGER)
     throw new Error('This program needs a new copy before it can be saved.');
   return program.revision + 1;
+}
+export const nameKey = (name: string) => name.trim().toLowerCase();
+function checkName(library: Library, title: string, id: string) {
+  if (!title.trim() || Array.from(title.trim()).length > 120)
+    throw new Error('Use a name with 1 to 120 characters.');
+  if (
+    library.programs.some(
+      (p) => p.id !== id && p.deletedAt === null && nameKey(p.title) === nameKey(title),
+    )
+  )
+    throw new Error('A program already uses this name. Choose another name.');
 }
 
 export function listGuestPrograms(showTrash = false, storage?: GuestStorage): GuestProgram[] {
@@ -107,6 +139,7 @@ export function restoreGuestProgram(id: string, storage?: GuestStorage): GuestPr
     (p) => p.id === id && p.deletedAt !== null && p.deletedAt > Date.now() - retention,
   );
   if (!program) throw new Error('Recoverable guest program not found.');
+  checkName(library, program.title, program.id);
   program.revision = nextRevision(program);
   program.deletedAt = null;
   program.updatedAt = Date.now();
@@ -123,8 +156,9 @@ export function saveGuestProgram(
   const target = device(storage),
     library = read(target);
   const previous = library.programs.find((p) => p.id === draft.localId);
+  checkName(library, draft.title, draft.localId);
   const content = {
-    title: draft.title,
+    title: draft.title.trim(),
     draft: draft.draft,
     problemId: draft.problemId,
     lastValidSource: draft.lastValidSource ?? null,

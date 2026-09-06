@@ -45,5 +45,6 @@ export function useDocument(user: User | null, initial: string) {
     fresh: controller.fresh,
     load: controller.load,
     copy: controller.copy,
+    discardDeleted: controller.discardDeleted,
   };
 }
