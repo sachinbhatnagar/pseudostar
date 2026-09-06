@@ -39,7 +39,7 @@ it('requires sign-in and sends only lesson context to the configured model', asy
   expect(request.messages[0].content).toContain('ASD-STE100');
   expect(request.messages[0].content).toContain('Never invent missing instructions');
   const context = JSON.parse(request.messages[1].content);
-  expect(context).not.toHaveProperty('privateReferenceSolution');
+  expect(context.privateReferenceSolution).toContain('ENDIF');
   expect(context.learnerPseudocode).toBe(payload.source);
   expect(JSON.stringify(request)).not.toContain(a.user.email);
 });
@@ -120,5 +120,34 @@ it('keeps block explanations contextual and discards extra model steps', async (
     learnerPseudocode: 'INPUT number\nOUTPUT number',
     selectedBlock: 'OUTPUT number',
   });
-  expect(JSON.parse(messages[1].content)).not.toHaveProperty('privateReferenceSolution');
+  expect(JSON.parse(messages[1].content).privateReferenceSolution).toContain('ENDIF');
+});
+it('returns a pending checklist with private reference context', async () => {
+  const a = await h.login();
+  const response = await h.request(
+    '/api/explanations',
+    'POST',
+    { ...payload, source: 'INPUT number', privateReferenceSolution: 'untrusted client answer' },
+    a.cookie,
+  );
+  const result = (await response.json()) as any;
+  expect(response.status).toBe(200);
+  expect(result.nextSteps).toEqual([
+    'Check whether the input is in the required range.',
+    'Show the result for each possible case.',
+  ]);
+  expect(result).not.toHaveProperty('privateReferenceSolution');
+  const context = JSON.parse((h.explanations[0] as any).messages[1].content);
+  expect(context.privateReferenceSolution).toContain('ENDIF');
+  expect(context.privateReferenceSolution).not.toBe('untrusted client answer');
+});
+it('does not invent a completion target for free practice', async () => {
+  const a = await h.login();
+  const response = await h.request(
+    '/api/explanations',
+    'POST',
+    { kind: 'program', source: 'OUTPUT 1' },
+    a.cookie,
+  );
+  expect(await response.json()).toMatchObject({ nextSteps: [] });
 });

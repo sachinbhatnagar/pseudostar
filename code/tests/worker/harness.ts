@@ -55,6 +55,12 @@ export async function harness(options: { groq?: boolean } = {}) {
                       ? 'not json'
                       : JSON.stringify({
                           paragraph: 'This instruction shows the value on the screen.',
+                          nextSteps: context.privateReferenceSolution
+                            ? [
+                                'Check whether the input is in the required range.',
+                                'Show the result for each possible case.',
+                              ]
+                            : [],
                           steps:
                             groqMode === 'single-step'
                               ? ['Read a value and store it in number.']

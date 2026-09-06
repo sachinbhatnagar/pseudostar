@@ -118,3 +118,37 @@ test('using a solution needs confirmation and replaces the current draft', async
     { useInnerText: true },
   );
 });
+test('pending checklist stays separate from the explanation of current code', async ({ page }) => {
+  await page.route('**/api/explanations', (r) =>
+    r.fulfill({
+      json: {
+        paragraph: 'The program reads a value into number.',
+        steps: ['Read and store a value.'],
+        nextSteps: [
+          'Check whether the value is in the required range.',
+          'Show a result for each case.',
+        ],
+        remaining: 199,
+      },
+    }),
+  );
+  await page.goto('/');
+  await signIn(page);
+  await page.getByRole('button', { name: 'Choose a problem', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /The inclusive gate/ })
+    .click();
+  await page.getByRole('button', { name: 'Explain Pseudocode', exact: true }).click();
+  const panel = page.getByRole('dialog');
+  await expect(panel).toContainText('The program reads a value into number.');
+  await expect(
+    panel.getByRole('region', { name: "What's next for you?" }).locator('li'),
+  ).toHaveText([
+    'Check whether the value is in the required range.',
+    'Show a result for each case.',
+  ]);
+  await page.screenshot({ path: '/tmp/ps-next-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: '/tmp/ps-next-mobile.png' });
+});

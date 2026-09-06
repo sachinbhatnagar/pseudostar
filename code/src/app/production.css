@@ -1289,3 +1289,25 @@ button:disabled {
 .learning-toolbar .solution-button {
   margin: 0;
 }
+.explanation-next {
+  margin-top: 24px;
+  padding: 20px;
+  background: #eaf0e6;
+  border-radius: 8px;
+}
+.explanation-next h3 {
+  font: inherit;
+  font-weight: 650;
+  margin: 0 0 12px;
+}
+.explanation-next ol {
+  margin: 0;
+}
+.explanation-next li {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.explanation-next p {
+  margin: 0;
+  font-size: 13px;
+}

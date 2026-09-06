@@ -262,6 +262,7 @@ function Studio({
     problemId: string | null;
     paragraph?: string;
     steps?: string[];
+    nextSteps?: string[];
     remaining?: number;
     error?: string;
     busy: boolean;
@@ -279,14 +280,16 @@ function Studio({
     explanationRequest.current = request;
     setExplanation({ kind, source, block, problemId, busy: true });
     try {
-      const result = await scopedApi<{ paragraph: string; steps: string[]; remaining: number }>(
-        '/explanations',
-        {
-          method: 'POST',
-          signal: AbortSignal.any([request.signal, AbortSignal.timeout(35000)]),
-          body: JSON.stringify({ kind, source, block, problemId }),
-        },
-      );
+      const result = await scopedApi<{
+        paragraph: string;
+        steps: string[];
+        nextSteps: string[];
+        remaining: number;
+      }>('/explanations', {
+        method: 'POST',
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(35000)]),
+        body: JSON.stringify({ kind, source, block, problemId }),
+      });
       if (explanationRequest.current === request)
         setExplanation({ kind, source, block, problemId, ...result, busy: false });
     } catch (error) {
@@ -1307,6 +1310,20 @@ function Studio({
                       <li key={i}>{step}</li>
                     ))}
                   </ol>
+                )}
+                {explanation.problemId && (
+                  <section className="explanation-next" aria-label="What's next for you?">
+                    <h3>What's next for you?</h3>
+                    {explanation.nextSteps?.length ? (
+                      <ol>
+                        {explanation.nextSteps.map((step, i) => (
+                          <li key={i}>{step}</li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p>No missing steps identified. Use Check my logic to test your program.</p>
+                    )}
+                  </section>
                 )}
                 <details className="explanation-details">
                   <summary>Code and usage</summary>
