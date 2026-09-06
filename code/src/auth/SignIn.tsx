@@ -186,9 +186,6 @@ export function AuthForm({
         <button className="guest-link" disabled={busy} onClick={onGuest}>
           Try a practice session without signing in
         </button>
-        <p className="auth-note">
-          No password to remember. Guest work stays on this device; sign in to save it online.
-        </p>
       </section>
     </main>
   );
