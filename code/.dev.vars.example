@@ -1,0 +1,8 @@
+# Copy to .dev.vars locally. Never commit the populated file.
+# Use the same origin as local Wrangler or the same-origin development proxy.
+APP_ORIGIN=http://127.0.0.1:5173
+RESEND_FROM=PseudoStar <verified-sender@example.com>
+RESEND_API_KEY=
+# Generate at least 32 random bytes for this secret.
+OTP_HMAC_SECRET=
+GROQ_API_KEY=
