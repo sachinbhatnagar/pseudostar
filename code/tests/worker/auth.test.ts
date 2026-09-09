@@ -140,3 +140,29 @@ it('rejects expired sessions and omits secrets from database records', async () 
     user: null,
   });
 });
+
+it('defaults the display name to email and lets only the signed-in user change it', async () => {
+  const h = await harness();
+  try {
+    const a = await h.login('named@example.com');
+    const b = await h.login('other-name@example.com');
+    const current = async (cookie: string) =>
+      ((await (await h.request('/api/session', 'GET', undefined, cookie)).json()) as any).user;
+    expect((await current(a.cookie)).name).toBe('named@example.com');
+    expect((await h.request('/api/profile', 'PATCH', { name: 'No session' })).status).toBe(401);
+    for (const name of ['', '   ', 'x'.repeat(101)])
+      expect((await h.request('/api/profile', 'PATCH', { name }, a.cookie)).status).toBe(400);
+    const response = await h.request(
+      '/api/profile',
+      'PATCH',
+      { name: '  Sachin  ', id: 'another-user' },
+      a.cookie,
+    );
+    expect(response.status).toBe(200);
+    expect((await current(a.cookie)).name).toBe('Sachin');
+    expect((await current(a.cookie)).email).toBe('named@example.com');
+    expect((await current(b.cookie)).name).toBe('other-name@example.com');
+  } finally {
+    await h.close();
+  }
+});

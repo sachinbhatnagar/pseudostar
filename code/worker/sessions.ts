@@ -20,10 +20,10 @@ export async function session(request: Request, env: Env) {
   const value = readToken(request, env);
   if (!value) return null;
   return env.DB.prepare(
-    'SELECT u.id,u.email FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?',
+    'SELECT u.id,u.email,COALESCE(u.name,u.email) AS name FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?',
   )
     .bind(await hash(value), Date.now())
-    .first<{ id: string; email: string }>();
+    .first<{ id: string; email: string; name: string }>();
 }
 export async function logout(request: Request, env: Env) {
   const value = readToken(request, env);

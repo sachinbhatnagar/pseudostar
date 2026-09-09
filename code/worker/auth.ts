@@ -72,7 +72,7 @@ export async function verify(request: Request, env: Env) {
       'INSERT INTO sessions(token_hash,user_id,created_at,expires_at) SELECT ?,u.id,?,? FROM users u JOIN otp_challenges c ON c.email=u.email WHERE c.id=? AND c.claim=?',
     ).bind(await hash(sessionToken), now, now + SESSION_AGE * 1000, id, claim),
     env.DB.prepare(
-      'SELECT u.id,u.email FROM users u JOIN otp_challenges c ON c.email=u.email WHERE c.id=? AND c.claim=?',
+      'SELECT u.id,u.email,COALESCE(u.name,u.email) AS name FROM users u JOIN otp_challenges c ON c.email=u.email WHERE c.id=? AND c.claim=?',
     ).bind(id, claim),
   ]);
   const user = results[3].results[0];
