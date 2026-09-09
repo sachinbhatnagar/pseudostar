@@ -15,5 +15,11 @@ export interface Problem {
     /** Final values, used when state rather than output is the task outcome. */
     expectedVariables?: Record<string, number | string | boolean>;
   }[];
-  version: 1;
+  version: number;
+  topics?: string[];
+  prerequisites?: string[];
+  sourceUrl?: string;
+  attribution?: string;
+  reviewLabel?: string;
+  exactOutput?: boolean;
 }

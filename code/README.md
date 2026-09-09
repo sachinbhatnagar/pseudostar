@@ -96,3 +96,37 @@ node scripts/preflight.mjs
 Both commands are offline. The first checks config and source assets; the second also checks build files. Neither validates remote resources or secrets. After setup, `node scripts/deploy.mjs` checks config, builds, checks assets, shows Cloudflare identity and deploys. Remote migrations remain a separate operation.
 
 Use `npm run fonts:setup`, `npm run deploy:preflight`, `npm run test:preflight`, and `npm run deploy` for these workflows. Build and postinstall do not change remote databases or secrets.
+
+## Community problems
+
+Open **Problems**, then **Contribute or review problems** while signed in.
+Supply a LeetCode reference link and an original or licensed statement, limits,
+and examples. The app does not scrape LeetCode. A source link can have only one
+import record, including under simultaneous submissions.
+
+Save the draft, then select **Generate solution**. Generation uses the configured
+Groq provider and `openai/gpt-oss-120b` model. It can take about two minutes.
+There are 20 new imports and 10 generation attempts per account per 24-hour rate
+window. Refresh a draft after an interrupted request before retrying.
+
+Checked drafts can be practised by their contributor before review. The verified
+account `mailme@sachinbhatnagar.com` is the initial admin. That account sees review
+controls in the community panel. An edit invalidates the prior approval checks;
+a published version stays available while its replacement is under review.
+
+Approved problems join the existing list. Filter by topic or difficulty. The
+**Advanced pseudocode guide** in the problem list explains lists, functions,
+recursion, maps, sets, and their operations. Indexes start at 1. `INPUT JSON name`
+reads structured values such as `[2,4,6]`; normal `INPUT` keeps its existing rules.
+Function inputs are copied and function variables are local. Existing subroutines
+continue to share their caller's variables.
+
+The local database needs migration `0003_shared_problems.sql`; run `npm run db:local`.
+Use `npm run dev` and `npm run dev:api` for local testing. The admin still signs in
+with the normal email code. No account or authentication bypass is installed.
+
+Tests cover text/block conversion, bounded execution, original examples,
+additional cases, and comparison against a separately generated reference.
+Agreement is evidence for review, not a correctness guarantee. Problems that fail
+checks stay private. Linked nodes, custom records, heaps, and related problem
+families remain [future scope](../docs/leetcode-import-scope.md).

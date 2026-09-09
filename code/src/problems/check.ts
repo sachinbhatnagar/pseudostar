@@ -19,7 +19,9 @@ export function checkProgram(problem: Problem, source: string): CaseResult[] {
     return {
       passed:
         !result.error &&
-        cursor === expected.length &&
+        (problem.exactOutput
+          ? JSON.stringify(result.output) === JSON.stringify(expected)
+          : cursor === expected.length) &&
         valuesPass &&
         (expected.length > 0 || values.length > 0),
       inputs: test.inputs,

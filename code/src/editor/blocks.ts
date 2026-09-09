@@ -30,8 +30,14 @@ Blockly.common.defineBlocksWithJsonArray([
   },
   {
     type: 'ps_input',
-    message0: 'INPUT %1',
-    args0: [field('NAME', 'number')],
+    message0: 'INPUT %1 %2',
+    args0: [
+      dropdown('FORMAT', [
+        ['value', ''],
+        ['JSON list or value', 'JSON'],
+      ]),
+      field('NAME', 'number'),
+    ],
     previousStatement: null,
     nextStatement: null,
     style: 'input',
@@ -43,6 +49,44 @@ Blockly.common.defineBlocksWithJsonArray([
     previousStatement: null,
     nextStatement: null,
     style: 'variable',
+  },
+  {
+    type: 'ps_while',
+    message0: 'WHILE %1',
+    args0: [field('EXPR', 'count < 5')],
+    message1: '%1',
+    args1: [{ type: 'input_statement', name: 'BODY' }],
+    message2: 'ENDWHILE',
+    previousStatement: null,
+    nextStatement: null,
+    style: 'loop',
+  },
+  {
+    type: 'ps_function',
+    message0: 'FUNCTION %1 ( %2 )',
+    args0: [field('NAME', 'double'), field('PARAMS', 'number')],
+    message1: '%1',
+    args1: [{ type: 'input_statement', name: 'BODY' }],
+    message2: 'END FUNCTION',
+    previousStatement: null,
+    nextStatement: null,
+    style: 'routine',
+  },
+  {
+    type: 'ps_return',
+    message0: 'RETURN %1',
+    args0: [field('EXPR', 'number * 2')],
+    previousStatement: null,
+    nextStatement: null,
+    style: 'routine',
+  },
+  {
+    type: 'ps_invoke',
+    message0: 'CALL %1',
+    args0: [field('EXPR', 'APPEND(items, 1)')],
+    previousStatement: null,
+    nextStatement: null,
+    style: 'routine',
   },
   {
     type: 'ps_sub',
@@ -232,6 +276,20 @@ export const palette = [
   { type: 'ps_set', label: 'variable = value', hint: 'Store a value', category: 'variable' },
   { type: 'ps_if', label: 'IF / ELSE', hint: 'Make a decision', category: 'selection' },
   { type: 'ps_for', label: 'FOR / NEXT', hint: 'Repeat instructions', category: 'loop' },
+  { type: 'ps_while', label: 'WHILE', hint: 'Repeat while a condition is true', category: 'loop' },
+  {
+    type: 'ps_function',
+    label: 'FUNCTION',
+    hint: 'Name a calculation with inputs',
+    category: 'routine',
+  },
+  { type: 'ps_return', label: 'RETURN', hint: 'Send back a result', category: 'routine' },
+  {
+    type: 'ps_invoke',
+    label: 'CALL',
+    hint: 'Use a function or change a collection',
+    category: 'routine',
+  },
   { type: 'ps_sub', label: 'SUB-ROUTINE', hint: 'Group instructions', category: 'routine' },
   { type: 'ps_call', label: 'name()', hint: 'Call a sub-routine', category: 'routine' },
 ];
@@ -247,10 +305,22 @@ export function sourceFor(ws: Blockly.Workspace, selected?: Blockly.Block) {
         text = `${f('KEYWORD')} ${f('EXPR')}`;
         break;
       case 'ps_input':
-        text = `INPUT ${f('NAME')}`;
+        text = `INPUT ${f('FORMAT') === 'JSON' ? 'JSON ' : ''}${f('NAME')}`;
         break;
       case 'ps_set':
         text = `${f('NAME')} = ${f('EXPR')}`;
+        break;
+      case 'ps_while':
+        text = `WHILE ${f('EXPR')}\n${body('BODY')}${pad}ENDWHILE`;
+        break;
+      case 'ps_function':
+        text = `FUNCTION ${f('NAME')}(${f('PARAMS')})\n${body('BODY')}${pad}END FUNCTION`;
+        break;
+      case 'ps_return':
+        text = `RETURN ${f('EXPR')}`;
+        break;
+      case 'ps_invoke':
+        text = `CALL ${f('EXPR')}`;
         break;
       case 'ps_call':
         text = `${f('NAME')}()`;
@@ -311,7 +381,11 @@ export function programToWorkspace(program: Program, ws: Blockly.Workspace, reco
       };
       switch (s.kind) {
         case 'input':
-          block = { ...block, type: 'ps_input', fields: { NAME: s.name } };
+          block = {
+            ...block,
+            type: 'ps_input',
+            fields: { NAME: s.name, FORMAT: s.json ? 'JSON' : '' },
+          };
           break;
         case 'output':
           block = {
@@ -323,6 +397,30 @@ export function programToWorkspace(program: Program, ws: Blockly.Workspace, reco
         case 'assign':
           block = { ...block, type: 'ps_set', fields: { NAME: s.name, EXPR: s.value.raw } };
           break;
+        case 'indexedAssign':
+          block = { ...block, type: 'ps_set', fields: { NAME: s.target.raw, EXPR: s.value.raw } };
+          break;
+        case 'invoke':
+          block = { ...block, type: 'ps_invoke', fields: { EXPR: s.expression.raw } };
+          break;
+        case 'return':
+          block = { ...block, type: 'ps_return', fields: { EXPR: s.value.raw } };
+          break;
+        case 'while':
+        case 'function': {
+          block = {
+            ...block,
+            type: s.kind === 'while' ? 'ps_while' : 'ps_function',
+            fields:
+              s.kind === 'while'
+                ? { EXPR: s.condition.raw }
+                : { NAME: s.name, PARAMS: s.parameters.join(', ') },
+            inputs: {},
+          };
+          const child = input(s.body);
+          if (child) block.inputs!.BODY = child;
+          break;
+        }
         case 'call':
           block = { ...block, type: 'ps_call', fields: { NAME: s.name } };
           break;

@@ -1,8 +1,9 @@
 # LeetCode import scope
 
 Design decisions agreed during brainstorming on 9 September 2026.
-Implementation is not complete. The consolidated
-[design spec](superpowers/specs/2026-09-09-leetcode-import-design.md) awaits review.
+Implemented locally on feat/leetcode-import. The approved
+[design spec](superpowers/specs/2026-09-09-leetcode-import-design.md) defines the release.
+User testing and deployment approval remain.
 
 ## Learning principle
 
@@ -21,8 +22,9 @@ Provide progressive hints. Keep the reference solution behind an explicit reveal
   variables, and recursion.
 - Support maps and sets.
 - Apply limits to execution, recursion, and collection sizes.
-- Accept LeetCode links. Allow manual entry of statements, examples, and
-  constraints when automatic import fails. Retain the source link.
+- Accept LeetCode reference links with contributor-authored or licensed
+  statements, examples, and constraints. Record the rights declaration.
+  Do not scrape LeetCode. This replaces the earlier automatic import proposal.
 - Prevent duplicate imports of the same source problem.
 - Generate original solutions with AI. Use internal reasoning to produce clear
   pseudocode, a concise algorithm explanation, and test cases.

@@ -15,7 +15,9 @@ export const pseudocodeLanguage = StreamLanguage.define({
     if (word) {
       const name = (word as RegExpMatchArray)[0];
       if (
-        /^(INPUT|OUTPUT|PRINT|IF|THEN|ELSEIF|ELSE|ENDIF|FOR|TO|NEXT|IN|RANGE|END|SUB)$/.test(name)
+        /^(WHILE|ENDWHILE|FUNCTION|RETURN|CALL|JSON|INPUT|OUTPUT|PRINT|IF|THEN|ELSEIF|ELSE|ENDIF|FOR|TO|NEXT|IN|RANGE|END|SUB)$/.test(
+          name,
+        )
       )
         return 'keyword';
       if (/^(AND|OR|NOT|MOD)$/.test(name)) return 'operator';
@@ -23,7 +25,7 @@ export const pseudocodeLanguage = StreamLanguage.define({
       return 'variableName';
     }
     if (stream.match(/^(?:==|>=|<=|<>|!=|[+\-*/&=<>])/)) return 'operator';
-    if (stream.match(/^[(),:]/)) return 'punctuation';
+    if (stream.match(/^[\[\](),:]/)) return 'punctuation';
     stream.next();
     return null;
   },

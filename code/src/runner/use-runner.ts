@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Diagnostic, Scalar, MachineEvent } from '../language/types';
+import type { Diagnostic, Value, MachineEvent } from '../language/types';
 export type RunnerStatus =
   'idle' | 'running' | 'paused' | 'input' | 'finished' | 'stopped' | 'error';
 export function useRunner() {
@@ -10,7 +10,7 @@ export function useRunner() {
   const watchdog = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const [status, setStatus] = useState<RunnerStatus>('idle'),
     [output, setOutput] = useState<string[]>([]),
-    [variables, setVariables] = useState<Record<string, Scalar>>({}),
+    [variables, setVariables] = useState<Record<string, Value>>({}),
     [diagnostic, setDiagnostic] = useState<Diagnostic | undefined>(),
     [inputName, setInputName] = useState(''),
     [line, setLine] = useState<number | undefined>();

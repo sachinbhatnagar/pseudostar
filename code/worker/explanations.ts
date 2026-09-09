@@ -2,6 +2,7 @@ import type { Env } from './env';
 import { body, fail, str } from './validation';
 import { hmac } from './crypto';
 import { catalog } from '../src/problems/catalog';
+import { visibleCandidate } from './shared-problems';
 import { internalSolutions } from '../internal/solutions';
 
 export const instructorPrompt = `You are a senior IGCSE ICT Instructor teaching a Grade 8 learner from Stage 9.
@@ -17,7 +18,12 @@ Use privateReferenceSolution privately to understand the intended result. Keep p
 Separately, return nextSteps: 0 to 12 short action sentences in build order for work still missing or incorrect in the whole learner program, using the problem and reference as the target. Each item must be a short plain-language one-liner (at most 180 characters), not pseudocode or a ready-made condition, formula or answer. Give requirements and thinking tasks, not implementations. For example, write "Check whether the input is within the required range", not the exact comparisons or operators. Write "Show the required message for each case", not the answer string. Do not add optional improvements as required work. Omit work already done correctly. Accept equivalent approaches; do not require the reference's variable names or exact structure. If no reference exists, return an empty nextSteps array. If nothing is missing, return an empty array; do not claim the program passed tests. For block mode, nextSteps still covers the whole current program. Never describe a pending item as already implemented.
 Return JSON with paragraph (plain text), steps (an array of plain-text strings) and nextSteps (an array of plain-text strings). No markdown, code fences, internal reasoning or reference solution. Explain code; do not invent test results.`;
 
-export async function explain(request: Request, env: Env, owner: string) {
+export async function explain(
+  request: Request,
+  env: Env,
+  owner: string,
+  user?: { id: string; email: string },
+) {
   const b = await body(request);
   if (b.kind !== 'block' && b.kind !== 'program')
     fail(400, 'INVALID_KIND', 'Choose a block or a program.');
@@ -30,7 +36,15 @@ export async function explain(request: Request, env: Env, owner: string) {
       .join('\n');
   if (selectedBlock && !normalize(source).includes(normalize(selectedBlock)))
     fail(400, 'INVALID_BLOCK', 'Select a block from this program.');
-  const problem = b.problemId == null ? undefined : catalog.find((p) => p.id === b.problemId);
+  const imported =
+    typeof b.problemId === 'string' && !catalog.some((p) => p.id === b.problemId)
+      ? await visibleCandidate(env, b.problemId, user ?? null)
+      : null;
+  const problem =
+    imported?.problem ??
+    (b.problemId == null ? undefined : catalog.find((p) => p.id === b.problemId));
+  const referenceSolution =
+    imported?.solution ?? (problem ? internalSolutions[problem.id] : undefined);
   if (b.problemId != null && !problem) fail(400, 'INVALID_PROBLEM', 'Choose an existing problem.');
   if (!env.GROQ_API_KEY)
     fail(503, 'AI_UNAVAILABLE', 'Explanations are not available yet. Try again later.');
@@ -100,9 +114,7 @@ export async function explain(request: Request, env: Env, owner: string) {
                   learnerPseudocode: source,
                   ...(selectedBlock ? { selectedBlock } : {}),
                   problemStatement: problem?.statement ?? null,
-                  privateReferenceSolution: problem
-                    ? (internalSolutions[problem.id] ?? null)
-                    : null,
+                  privateReferenceSolution: problem ? (referenceSolution ?? null) : null,
                 }),
               },
             ],
@@ -147,7 +159,7 @@ export async function explain(request: Request, env: Env, owner: string) {
         return Response.json({
           paragraph: result.paragraph,
           steps: b.kind === 'block' ? [] : result.steps,
-          nextSteps: problem && internalSolutions[problem.id] ? result.nextSteps : [],
+          nextSteps: problem && referenceSolution ? result.nextSteps : [],
           remaining: 200 - usage.count,
           resetsAt: day + 86400000,
         });

@@ -469,10 +469,14 @@ test('guest library keeps programs across New, challenge switches, and reload', 
   await nameProgram(page, 'Guest second revised');
   await expect(editor(page)).toHaveText('OUTPUT "second local program"');
   expect(api.saves).toEqual([]);
-  expect(api.requests.every((request) => request.path === '/session')).toBe(true);
+  expect(
+    api.requests.every(
+      (request) => request.method === 'GET' && ['/session', '/problems'].includes(request.path),
+    ),
+  ).toBe(true);
 });
 
-test('guest delete and restore preserve local programs without cloud requests', async ({
+test('guest delete and restore preserve local programs without cloud writes', async ({
   page,
   api,
 }) => {
@@ -500,7 +504,11 @@ test('guest delete and restore preserve local programs without cloud requests', 
   await expect(editor(page)).toHaveText('OUTPUT "local recovery"');
   await page.reload();
   await expect(editor(page)).toHaveText('OUTPUT "local recovery"');
-  expect(api.requests.every((request) => request.path === '/session')).toBe(true);
+  expect(
+    api.requests.every(
+      (request) => request.method === 'GET' && ['/session', '/problems'].includes(request.path),
+    ),
+  ).toBe(true);
 });
 
 test('a failed list refresh after deletion cannot make later saves target the deleted program', async ({

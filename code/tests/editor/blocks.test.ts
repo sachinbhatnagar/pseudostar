@@ -162,3 +162,13 @@ describe('block round trips', () => {
     }
   });
 });
+
+it('round trips advanced functions, collections, and loop bodies', () => {
+  const source =
+    'FUNCTION sum(items)\n    total = 0\n    i = 1\n    WHILE i <= LENGTH(items)\n        total = total + items[i]\n        i = i + 1\n    ENDWHILE\n    RETURN total\nEND FUNCTION\na = [1, 2]\na[2] = 4\nCALL APPEND(a, 3)\nOUTPUT sum(a)';
+  withWorkspace(source, (ws) => {
+    expect(run(sourceFor(ws), []).output).toEqual(['8']);
+    expect(ws.getAllBlocks(false).some((b) => b.type === 'ps_function')).toBe(true);
+    expect(ws.getAllBlocks(false).some((b) => b.type === 'ps_while')).toBe(true);
+  });
+});

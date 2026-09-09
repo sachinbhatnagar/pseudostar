@@ -158,7 +158,13 @@ export const BlockEditor = forwardRef<
         if (s.kind === 'if') {
           s.branches.forEach((b) => flatten(b.body));
           flatten(s.otherwise ?? []);
-        } else if (s.kind === 'for' || s.kind === 'sub') flatten(s.body);
+        } else if (
+          s.kind === 'for' ||
+          s.kind === 'sub' ||
+          s.kind === 'function' ||
+          s.kind === 'while'
+        )
+          flatten(s.body);
       });
     flatten(parsed.program.statements);
     const blocks: Blockly.BlockSvg[] = [];

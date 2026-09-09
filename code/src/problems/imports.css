@@ -1,0 +1,117 @@
+.import-panel {
+  display: grid;
+  gap: 1rem;
+}
+.import-panel fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.8rem;
+  min-width: 0;
+}
+.import-panel legend {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 1rem 0;
+}
+.import-panel label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 500;
+}
+.import-panel input:not([type='checkbox']),
+.import-panel textarea,
+.import-panel select {
+  width: 100%;
+  min-width: 0;
+  padding: 0.65rem;
+  font: inherit;
+  color: #27352a;
+  background: #fff;
+  border: 1px solid #82927c;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+.import-panel textarea {
+  resize: vertical;
+}
+.import-panel .import-code {
+  font-family: monospace;
+  line-height: 1.5;
+}
+.import-picker,
+.import-example {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: end;
+}
+.import-note {
+  font-size: 0.9rem;
+}
+.import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin: 0.5rem 0;
+}
+.import-topics {
+  display: flex;
+  gap: 0.8rem 1.2rem;
+  flex-wrap: wrap;
+}
+.import-topics label {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.import-block-preview {
+  height: 380px;
+  min-width: 0;
+  position: relative;
+}
+.import-panel button {
+  padding: 0.6rem 0.9rem;
+  min-height: 42px;
+}
+.import-panel button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.import-panel li {
+  margin: 0.3rem 0;
+}
+.import-panel details {
+  overflow-wrap: anywhere;
+}
+.import-modal {
+  width: min(940px, calc(100vw - 32px));
+}
+@media (max-width: 620px) {
+  .import-picker,
+  .import-example {
+    grid-template-columns: 1fr;
+  }
+}
+.import-block-preview .blocklyText,
+.import-block-preview .blocklyDropdownText {
+  fill: #27352a;
+}
+.import-modal .modal-heading {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #f7f9f5;
+  padding-bottom: 0.8rem;
+}
+.import-modal {
+  padding: 0;
+}
+.import-modal .modal-heading {
+  margin: 0;
+  padding: 20px;
+}
+.import-modal .import-panel {
+  padding: 0 20px 24px;
+}

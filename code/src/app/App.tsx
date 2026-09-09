@@ -12,7 +12,13 @@ import {
 import { parse } from '../language/parse';
 import { format } from '../language/format';
 import { useRunner } from '../runner/use-runner';
-import { catalog } from '../problems/catalog';
+import { catalog as bundledCatalog } from '../problems/catalog';
+import { display } from '../language/collections';
+const ImportPanel = lazy(() =>
+  import('../problems/ImportPanel').then((m) => ({ default: m.ImportPanel })),
+);
+import { problemTopics, topics, progressKey } from '../problems/shared';
+import { advancedReference } from '../learning/advanced-reference';
 import type { Problem } from '../problems/types';
 import type { CaseResult } from '../problems/check';
 import { SolutionComparison } from '../learning/SolutionComparison';
@@ -175,6 +181,36 @@ function Studio({
   const document = useDocument(user, 'OUTPUT "What will you build today?"'),
     { doc, setDoc, status, error } = document;
   const [leaving, setLeaving] = useState(false);
+  const [sharedError, setSharedError] = useState('');
+  const [algorithmExplanation, setAlgorithmExplanation] = useState('');
+  const [community, setCommunity] = useState(false),
+    [shared, setShared] = useState<Problem[]>([]),
+    [topic, setTopic] = useState('All');
+  const catalog = [...bundledCatalog, ...shared];
+  const refreshShared = async (signal?: AbortSignal) => {
+    const problems: Problem[] = [];
+    let cursor: string | null = null;
+    do {
+      const r: { problems: Problem[]; nextCursor?: string | null } = await api(
+        '/problems' + (cursor ? '?after=' + encodeURIComponent(cursor) : ''),
+        { signal, headers: user ? { 'X-Pseudostar-User': user.id } : {} },
+      );
+      problems.push(...r.problems);
+      cursor = r.nextCursor ?? null;
+    } while (cursor);
+    if (!signal?.aborted) {
+      setShared(problems);
+      setSharedError('');
+    }
+  };
+  useEffect(() => {
+    const controller = new AbortController();
+    void refreshShared(controller.signal).catch(() => {
+      if (!controller.signal.aborted)
+        setSharedError('Shared problems could not load. Existing lessons are still available.');
+    });
+    return () => controller.abort();
+  }, [user?.id]);
   const [naming, setNaming] = useState<'copy' | 'edit' | 'save' | null>(null);
   const [newName, setNewName] = useState('');
   const [nameError, setNameError] = useState('');
@@ -358,7 +394,7 @@ function Studio({
     !parsed.ok &&
     !(blockDraft.current?.id === doc.localId && blockDraft.current.source === doc.draft);
   const problem = catalog.find((p) => p.id === doc.problemId);
-  const currentHints = problem ? (hints[problem.id] ?? 0) : 0;
+  const currentHints = problem ? (hints[progressKey(problem.id, problem.version)] ?? 0) : 0;
   const lastValid = useRef({
     id: doc.localId,
     source: parsed.ok ? doc.draft : (doc.lastValidSource ?? ''),
@@ -385,12 +421,14 @@ function Studio({
           highestHint?: number;
           highestHintViewed?: number;
           status?: string;
+          contentVersion?: number;
         }>;
       }>('/progress')
         .then((r) => {
           const values: Record<string, number> = {};
           for (const p of r.progress ?? [])
-            values[p.problemId] = p.highestHint ?? p.highestHintViewed ?? 0;
+            values[progressKey(p.problemId, p.contentVersion)] =
+              p.highestHint ?? p.highestHintViewed ?? 0;
           setHints((current) => {
             const merged = { ...values };
             for (const [id, count] of Object.entries(current))
@@ -401,7 +439,9 @@ function Studio({
             (current) =>
               new Set([
                 ...current,
-                ...r.progress.filter((p) => p.status === 'passed').map((p) => p.problemId),
+                ...r.progress
+                  .filter((p) => p.status === 'passed')
+                  .map((p) => progressKey(p.problemId, p.contentVersion)),
               ]),
           );
         })
@@ -480,7 +520,8 @@ function Studio({
       setResults(data);
       w.terminate();
       checkWorker.current = null;
-      if (data.every((r) => r.passed)) setCompleted((current) => new Set([...current, problem.id]));
+      if (data.every((r) => r.passed))
+        setCompleted((current) => new Set([...current, progressKey(problem.id, problem.version)]));
       if (user)
         void scopedApi('/progress/' + problem.id, {
           method: 'PUT',
@@ -579,6 +620,18 @@ function Studio({
                 </div>
                 <h1>{problem.title}</h1>
                 <p className="problem-statement">{problem.statement}</p>
+                {problem.reviewLabel && <p>{problem.reviewLabel}</p>}
+                {problem.sourceUrl && (
+                  <p>
+                    <a href={problem.sourceUrl} target="_blank" rel="noreferrer">
+                      LeetCode reference
+                    </a>{' '}
+                    · {problem.attribution}
+                  </p>
+                )}
+                {!!problem.prerequisites?.length && (
+                  <p>Before you start: {problem.prerequisites.join('; ')}</p>
+                )}
                 <section className="examples">
                   <h2>Try these inputs</h2>
                   {problem.samples.map((s, i) => (
@@ -606,7 +659,7 @@ function Studio({
                     disabled={currentHints >= 3}
                     onClick={() => {
                       const next = Math.min(3, currentHints + 1);
-                      setHints((v) => ({ ...v, [problem.id]: next }));
+                      setHints((v) => ({ ...v, [progressKey(problem.id, problem.version)]: next }));
                       if (user)
                         void scopedApi('/progress/' + problem.id, {
                           method: 'PUT',
@@ -918,7 +971,9 @@ function Studio({
                         <td>
                           <code>{name}</code>
                         </td>
-                        <td>{JSON.stringify(value)}</td>
+                        <td>
+                          {typeof value === 'object' ? display(value) : JSON.stringify(value)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -993,6 +1048,20 @@ function Studio({
         </section>
       </main>
       <Modal open={library} onOpenChange={setLibrary} title="Choose your next challenge">
+        {sharedError && (
+          <p role="alert">
+            {sharedError}{' '}
+            <button
+              onClick={() =>
+                void refreshShared().catch(() =>
+                  setSharedError('Shared problems are still unavailable. Try again shortly.'),
+                )
+              }
+            >
+              Retry shared problems
+            </button>
+          </p>
+        )}
         <div className="library-filters">
           <input
             aria-label="Search problems"
@@ -1010,18 +1079,47 @@ function Studio({
             ))}
           </select>
         </div>
+        <label>
+          Topic{' '}
+          <select aria-label="Topic" value={topic} onChange={(e) => setTopic(e.target.value)}>
+            <option>All</option>
+            {topics.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </label>
+        {user && (
+          <button
+            onClick={() => {
+              setLibrary(false);
+              setCommunity(true);
+            }}
+          >
+            Contribute or review problems
+          </button>
+        )}
         {message && <p role="alert">{message}</p>}
+        <details>
+          <summary>Advanced pseudocode guide</summary>
+          <pre style={{ whiteSpace: 'pre-wrap' }}>{advancedReference}</pre>
+        </details>
         <div className="problem-list">
           {!catalog.some(
             (p) =>
               (difficulty === 'All' || p.difficulty === difficulty) &&
-              `${p.title} ${p.concepts.join(' ')}`.toLowerCase().includes(query.toLowerCase()),
+              (topic === 'All' || problemTopics(p).includes(topic)) &&
+              `${p.title} ${p.concepts.join(' ')} ${problemTopics(p).join(' ')}`
+                .toLowerCase()
+                .includes(query.toLowerCase()),
           ) && <p className="empty-state">No problems match. Try another topic or difficulty.</p>}
           {catalog
             .filter(
               (p) =>
                 (difficulty === 'All' || p.difficulty === difficulty) &&
-                `${p.title} ${p.concepts.join(' ')}`.toLowerCase().includes(query.toLowerCase()),
+                (topic === 'All' || problemTopics(p).includes(topic)) &&
+                `${p.title} ${p.concepts.join(' ')} ${problemTopics(p).join(' ')}`
+                  .toLowerCase()
+                  .includes(query.toLowerCase()),
             )
             .map((p) => (
               <button
@@ -1032,15 +1130,39 @@ function Studio({
                 <span className={'level level-' + p.difficulty.toLowerCase()}>{p.difficulty}</span>
                 <span>
                   <strong>{p.title}</strong>
-                  <small>{p.concepts.join(' · ')}</small>
+                  <small>
+                    {[...new Set([...problemTopics(p), ...p.concepts])].join(' · ')}
+                    {p.reviewLabel ? ` · ${p.reviewLabel}` : ''}
+                  </small>
                 </span>
                 <span className="row-action">
-                  {completed.has(p.id) ? 'Passed · practise again' : 'Start'}
+                  {completed.has(progressKey(p.id, p.version))
+                    ? 'Passed · practise again'
+                    : 'Start'}
                 </span>
               </button>
             ))}
         </div>
       </Modal>
+      {user && (
+        <Modal
+          open={community}
+          onOpenChange={setCommunity}
+          title="Community problems"
+          className="import-modal"
+        >
+          <Suspense fallback={<p role="status">Opening community problems…</p>}>
+            <ImportPanel
+              user={user}
+              onRefresh={refreshShared}
+              onPractice={async (p) => {
+                await choose(p);
+                setCommunity(false);
+              }}
+            />
+          </Suspense>
+        </Modal>
+      )}
       <Modal open={savedOpen} onOpenChange={setSavedOpen} title="My programs">
         {!user && (
           <p className="local-library-note">
@@ -1194,6 +1316,7 @@ function Studio({
       >
         {solution ? (
           <>
+            <>{algorithmExplanation && <p>{algorithmExplanation}</p>}</>
             <SolutionComparison source={comparisonSource} solution={solution} />
             <div className="solution-replace">
               {replaceSolution ? (
@@ -1244,7 +1367,7 @@ function Studio({
                   setSolutionBusy(true);
                   setSolutionError('');
                   try {
-                    const result = await api<{ source: string }>(
+                    const result = await api<{ source: string; explanation?: string }>(
                       `/problems/${problem.id}/solution`,
                       {
                         method: 'POST',
@@ -1252,6 +1375,7 @@ function Studio({
                       },
                     );
                     setSolution(result.source);
+                    setAlgorithmExplanation(result.explanation ?? '');
                   } catch (e) {
                     setSolutionError((e as Error).message);
                   } finally {

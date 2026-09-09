@@ -2,8 +2,8 @@
 
 Date: 9 September 2026
 
-Status: Design sections approved in conversation. Consolidated spec awaits user
-review before implementation planning.
+Status: Approved. Source policy revised by the user: use original or licensed
+statements with LeetCode reference links. Do not scrape LeetCode.
 
 ## Objective
 
@@ -71,18 +71,17 @@ or Python on the server.
    review without exposing its private contents.
 4. Reserve the source identity before fetching or generating. A database unique
    constraint must prevent simultaneous submissions from creating duplicates.
-5. Fetch the public statement, examples, constraints, and available metadata.
-6. If fetching fails or requires login, offer manual entry of those fields while
-   retaining the canonical link. Do not bypass access controls.
+5. Ask the contributor for an original or licensed statement, examples, and
+   constraints. Record their rights declaration.
+6. Retain the canonical reference link. Do not retrieve LeetCode content.
 7. Generate and validate a candidate solution. Save the results and stage status.
 8. Enable contributor practice after execution and block checks pass. Label the
    draft "Not reviewed". Send it to the admin review queue.
 9. Publish only after admin approval of the checked content revision.
 
-Show the source link and attribution. Verify the source access and reuse terms
-before implementing automated retrieval and shared statement storage; do not
-assume that public access grants redistribution rights. Record any resulting
-constraint before implementation proceeds with affected functionality.
+Show the source link and attribution. LeetCode's terms prohibit scraping and
+restrict content reuse: https://leetcode.com/terms/ (checked 9 September 2026).
+The user selected original or licensed statements instead of automated retrieval.
 
 ## Generation and checks
 
@@ -175,7 +174,7 @@ recursion limits, and text/block behaviour. Run existing language and catalog
 checks to detect regressions.
 
 Test canonical URL variants, simultaneous imports, retries, stale attempts,
-malformed AI output, unsupported problems, failed source retrieval, and manual
+malformed AI output, unsupported problems, rights declarations, and manual
 entry. Test contributor isolation, admin enforcement, stale approvals, and
 publication of the checked revision only.
 

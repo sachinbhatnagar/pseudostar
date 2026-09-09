@@ -47,7 +47,8 @@ export function parse(source: string): ParseResult {
       },
     };
   };
-  const isEnd = (text: string) => /^(ELSEIF\b|ELSE$|ENDIF$|NEXT\b|END SUB$)/.test(text);
+  const isEnd = (text: string) =>
+    /^(ELSEIF\b|ELSE$|ENDIF$|NEXT\b|END SUB$|ENDWHILE$|END FUNCTION$)/.test(text);
   const sequence = (indentEnd?: number): Statement[] => {
     if (++depth > 64)
       fail('This program is nested too deeply. Use a sub-routine to make it smaller.');
@@ -84,9 +85,9 @@ export function parse(source: string): ParseResult {
     let m: RegExpMatchArray | null;
     if (/\t/.test(line.raw.slice(0, line.raw.length - line.raw.trimStart().length)))
       fail('Use spaces for indentation, not tabs.');
-    if ((m = text.match(new RegExp(`^INPUT (${identifier})$`)))) {
+    if ((m = text.match(new RegExp(`^INPUT (JSON )?(${identifier})$`)))) {
       at++;
-      return { ...b, kind: 'input', name: m[1] };
+      return { ...b, kind: 'input', name: m[2], ...(m[1] ? { json: true } : {}) };
     }
     if ((m = text.match(/^(OUTPUT|PRINT) (.+)$/))) {
       at++;
@@ -96,6 +97,44 @@ export function parse(source: string): ParseResult {
         keyword: m[1] as 'OUTPUT' | 'PRINT',
         values: parseExpressions(m[2], true),
       };
+    }
+    if ((m = text.match(/^WHILE (.+)$/))) {
+      const condition = parseExpression(m[1]);
+      at++;
+      const body = sequence();
+      if (lines[at]?.text !== 'ENDWHILE') fail('This WHILE needs ENDWHILE.');
+      at++;
+      return { ...b, kind: 'while', condition, body };
+    }
+    if ((m = text.match(/^FUNCTION ([A-Za-z_][A-Za-z0-9_]*)\((.*)\)$/))) {
+      const parameters = m[2].trim() ? m[2].split(',').map((x) => x.trim()) : [];
+      if (
+        parameters.some((x) => !/^[A-Za-z_][A-Za-z0-9_]*$/.test(x)) ||
+        new Set(parameters).size !== parameters.length
+      )
+        fail('Use different variable names for the function inputs.');
+      const name = m[1];
+      at++;
+      const body = sequence();
+      if (lines[at]?.text !== 'END FUNCTION') fail('This function needs END FUNCTION.');
+      at++;
+      return { ...b, kind: 'function', name, parameters, body };
+    }
+    if ((m = text.match(/^RETURN (.+)$/))) {
+      at++;
+      return { ...b, kind: 'return', value: parseExpression(m[1]) };
+    }
+    if ((m = text.match(/^CALL (.+)$/))) {
+      const expression = parseExpression(m[1]);
+      if (expression.kind !== 'invoke') fail('CALL needs a function name and parentheses.');
+      at++;
+      return { ...b, kind: 'invoke', expression };
+    }
+    if ((m = text.match(/^([A-Za-z_][A-Za-z0-9_]*\[.+\]) = (.+)$/))) {
+      const target = parseExpression(m[1]);
+      if (target.kind !== 'index') fail('Choose an indexed list item.');
+      at++;
+      return { ...b, kind: 'indexedAssign', target, value: parseExpression(m[2]) };
     }
     if (text.startsWith('IF ')) {
       const first = thenCondition(text, 'IF');
