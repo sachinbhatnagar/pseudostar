@@ -2,31 +2,8 @@ import { Blockly, programToWorkspace, sourceFor } from '../src/editor/blocks';
 import { parse } from '../src/language/parse';
 import { format } from '../src/language/format';
 import { run } from '../src/language/machine';
-import { topics, type Candidate, type ImportSource, type Validation } from '../src/problems/shared';
+import { type Candidate, type Validation } from '../src/problems/shared';
 import { fail, str } from './validation';
-export function canonicalUrl(value: unknown) {
-  const text = str(value, 'LeetCode link', 600);
-  let url: URL;
-  try {
-    url = new URL(text);
-  } catch {
-    return fail(400, 'INVALID_LINK', 'Enter a full LeetCode problem link.');
-  }
-  const match =
-    /^\/problems\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\/(?:description|solutions|editorial|submissions))?\/?$/.exec(
-      url.pathname,
-    );
-  if (
-    url.protocol !== 'https:' ||
-    !['leetcode.com', 'www.leetcode.com'].includes(url.hostname) ||
-    url.port ||
-    url.username ||
-    url.password ||
-    !match
-  )
-    fail(400, 'INVALID_LINK', 'Use an https://leetcode.com/problems/problem-name/ link.');
-  return `https://leetcode.com/problems/${match![1]}/`;
-}
 const object = (v: unknown): Record<string, unknown> => {
   if (!v || typeof v !== 'object' || Array.isArray(v))
     fail(400, 'INVALID_FIELD', 'Use a valid problem object.');
@@ -36,76 +13,64 @@ function texts(v: unknown, name: string, max: number, length = 300): string[] {
   if (!Array.isArray(v) || v.length > max) fail(400, 'INVALID_FIELD', `Check ${name}.`);
   return (v as unknown[]).map((x) => str(x, name, length, true));
 }
-export function samples(v: unknown) {
-  if (!Array.isArray(v) || v.length < 1 || v.length > 12)
-    fail(400, 'INVALID_SAMPLES', 'Add 1 to 12 examples.');
-  return (v as unknown[]).map((x) => {
-    const s = object(x);
-    const outputs = texts(s.outputs, 'example results', 10, 2000);
-    if (!outputs.length) fail(400, 'INVALID_SAMPLES', 'Each example needs a result.');
-    return { inputs: texts(s.inputs, 'example inputs', 10, 2000), outputs };
-  });
-}
-export function sourceInput(v: Record<string, unknown>): ImportSource {
-  if (v.rights !== 'original' && v.rights !== 'licensed')
-    fail(400, 'RIGHTS_REQUIRED', 'Confirm that the statement is original or licensed for sharing.');
-  return {
-    url: canonicalUrl(v.url),
-    title: str(v.title, 'title', 120),
-    statement: str(v.statement, 'statement', 12000),
-    constraints: str(v.constraints, 'constraints', 4000),
-    samples: samples(v.samples),
-    rights: v.rights,
-    attribution: str(v.attribution, 'author or licence', 1000),
-  };
-}
-export function candidateInput(
+export function publicationCandidate(
   v: unknown,
-  source: ImportSource,
+  solution: string,
   id: string,
   revision: number,
 ): Candidate {
   const c = object(v),
     p = object(c.problem);
+  const statement = str(p.statement, 'learner statement', 16000);
+  if (
+    /```|\b(?:SET|OUTPUT|INPUT|PRINT|RETURN|ENDIF|ENDFUNCTION)\b|\b[A-Za-z_]\w*\s*(?:=|←)\s*[^=]/.test(
+      statement,
+    )
+  )
+    fail(502, 'INVALID_DESCRIPTION', 'AI included code in the description. Try publishing again.');
+  if (/leetcode/i.test(statement))
+    fail(400, 'INVALID_STATEMENT', 'Remove source branding from the learner statement.');
   if (!['Easy', 'Medium', 'Hard'].includes(String(p.difficulty)))
     fail(400, 'INVALID_FIELD', 'Choose a difficulty.');
-  const hints = texts(p.hints, 'hints', 3, 500),
-    selected = texts(p.topics, 'topics', 8, 80);
+  const hints = texts(p.hints, 'hints', 3, 500);
+  if (hints.length !== 3 || hints.some((x) => !x.trim()))
+    fail(400, 'INVALID_FIELD', 'Use three hints.');
+  const readsInput = /^\s*INPUT(?:\s|$)/im.test(solution);
   if (
-    hints.length !== 3 ||
-    hints.some((x) => !x.trim()) ||
-    !selected.length ||
-    selected.some((x) => !topics.includes(x as (typeof topics)[number]))
+    !Array.isArray(p.cases) ||
+    p.cases.length < (readsInput ? 4 : 1) ||
+    p.cases.length > (readsInput ? 10 : 1)
   )
-    fail(400, 'INVALID_FIELD', 'Use three hints and recognised topics.');
-  if (!Array.isArray(p.cases) || p.cases.length < 1 || p.cases.length > 20)
-    fail(400, 'INVALID_CASES', 'Use 1 to 20 test cases.');
+    fail(502, 'INVALID_CASES', 'AI could not create suitable tests. Try publishing again.');
   const cases = p.cases.map((x) => {
     const t = object(x),
       expectedOutput = texts(t.expectedOutput, 'expected result', 10, 2000);
     if (!expectedOutput.length) fail(400, 'INVALID_CASES', 'Each test needs an expected result.');
     return { inputs: texts(t.inputs, 'test inputs', 10, 2000), expectedOutput };
   });
+  if (!readsInput && cases.some((test) => test.inputs.length))
+    fail(
+      502,
+      'INVALID_CASES',
+      'AI added inputs to a program that does not read input. Try publishing again.',
+    );
   return {
-    solution: str(c.solution, 'solution', 20000),
+    solution: str(solution, 'solution', 20000),
     explanation: str(c.explanation, 'algorithm explanation', 3000),
     problem: {
       id,
-      title: source.title,
-      statement: source.statement + '\n\nLimits: ' + source.constraints,
+      title: str(p.title, 'title', 120),
+      statement,
       difficulty: p.difficulty as 'Easy' | 'Medium' | 'Hard',
-      concepts: selected,
-      topics: selected,
+      concepts: [],
       prerequisites: texts(p.prerequisites, 'prerequisites', 6, 200),
       referenceIds: [],
-      starter: str(p.starter ?? '', 'starter', 2000, true),
+      starter: '',
       hints: hints as [string, string, string],
-      samples: source.samples,
+      samples: cases.slice(0, 2).map((c) => ({ inputs: c.inputs, outputs: c.expectedOutput })),
       cases,
       version: revision,
       exactOutput: true,
-      sourceUrl: source.url,
-      attribution: source.attribution,
     },
   };
 }

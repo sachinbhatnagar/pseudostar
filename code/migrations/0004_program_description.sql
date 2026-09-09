@@ -1,0 +1,1 @@
+ALTER TABLE programs ADD COLUMN description TEXT NOT NULL DEFAULT '';

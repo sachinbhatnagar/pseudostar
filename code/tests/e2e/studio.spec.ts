@@ -1,5 +1,37 @@
 import { test, expect, editor, guest, write } from './fixtures';
 
+test('SET and function results work in text, blocks, and the variable monitor', async ({
+  page,
+}) => {
+  await guest(page);
+  await write(
+    page,
+    'SET items = [2, 4, 6]\nSET count = LENGTH(items)\nSET items[2] = count\nOUTPUT count\nOUTPUT items',
+  );
+  await page.getByRole('button', { name: 'Split Screen', exact: true }).click();
+  await expect(page.locator('.blockly-host')).toContainText('LENGTH');
+  await expect(
+    page.getByRole('button', {
+      name: 'Function result Store the result of function',
+      exact: true,
+    }),
+  ).toBeEnabled();
+  await page.getByRole('button', { name: 'Run program', exact: true }).click();
+  await expect(page.getByRole('log', { name: 'Program output' }).locator('pre')).toHaveText([
+    '3',
+    '[2,3,6]',
+  ]);
+  await expect(page.getByRole('row').filter({ hasText: 'count' })).toHaveText('count3');
+  await page.screenshot({ path: '/tmp/pseudostar-set-functions.png', fullPage: true });
+  await page
+    .getByRole('button', {
+      name: 'Function result Store the result of function',
+      exact: true,
+    })
+    .click();
+  await expect(editor(page)).toContainText('SET count = LENGTH(items)');
+});
+
 test('guest opens a starter, explores hints in order, and restores the local program', async ({
   page,
   api,
@@ -87,31 +119,14 @@ test('invalid text disables execution and block edits, survives reload, and can 
   await expect(page.getByRole('log').locator('pre')).toHaveText(['recovered']);
 });
 
-test('library combines difficulty and case-insensitive title or concept filters', async ({
-  page,
-}) => {
+test('library filters by difficulty only', async ({ page }) => {
   await guest(page);
-  await page.getByRole('button', { name: 'Browse all problems' }).click();
-  const dialog = page.getByRole('dialog'),
-    rows = dialog.locator('.problem-row');
-  expect(await rows.count()).toBeGreaterThanOrEqual(50);
-  await dialog.getByRole('combobox', { name: 'Difficulty' }).selectOption('Hard');
-  await expect(rows.first()).toBeVisible();
-  for (const level of await rows.locator('.level').allTextContents()) expect(level).toBe('Hard');
-  await dialog.getByRole('textbox', { name: 'Search problems' }).fill('RIGHT MOVE WITH A STOP');
-  await expect(rows).toHaveCount(1);
-  await expect(rows).toContainText('Right move with a stop');
-  await dialog.getByRole('combobox', { name: 'Difficulty' }).selectOption('Easy');
-  await expect(rows).toHaveCount(0);
-  await dialog.getByRole('combobox', { name: 'Difficulty' }).selectOption('Hard');
-  await dialog.getByRole('textbox', { name: 'Search problems' }).fill('CLAMPING');
-  await expect(rows.first()).toBeVisible();
-  for (const concepts of await rows.locator('small').allTextContents())
-    expect(concepts.toLowerCase()).toContain('clamping');
-  await dialog.getByRole('textbox', { name: 'Search problems' }).fill('not-a-real-problem-xyz');
-  await expect(rows).toHaveCount(0);
-  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(dialog).not.toBeVisible();
+  await page.getByRole('button', { name: 'Choose a problem' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('combobox')).toHaveCount(1);
+  await expect(dialog.getByRole('textbox')).toHaveCount(0);
+  await dialog.getByLabel('Difficulty').selectOption('Hard');
+  await expect(dialog.locator('.problem-row')).toHaveCount(20);
 });
 
 test('text converts to blocks and editing a block field updates executable text', async ({
@@ -307,21 +322,25 @@ test('responsive layouts stay visible without overflow and support keyboard and 
   );
   for (const width of [1440, 1024, 390]) {
     await page.setViewportSize({ width, height: 1000 });
+    if (width === 390)
+      await page.getByRole('button', { name: 'Add or edit problem details' }).click();
     await expect(page.getByRole('textbox', { name: 'Program name' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Run program', exact: true })).toBeVisible();
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
       .toBe(true);
   }
-  const toggle = page.getByRole('button', { name: 'Show challenge & hints', exact: true });
-  await expect(toggle).toBeVisible();
-  await toggle.click();
-  const hide = page.getByRole('button', { name: 'Hide challenge', exact: true });
+  const toggle = page.getByRole('button', { name: 'Add or edit problem details', exact: true });
+  const hide = page.getByRole('button', { name: 'Hide problem details', exact: true });
+  await page
+    .getByRole('textbox', { name: 'Detailed problem statement' })
+    .fill('Find the sum of 10 and 20.');
+  await page.screenshot({ path: '/tmp/pseudostar-problem-brief-mobile.png' });
   await expect(hide).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByRole('heading', { name: 'A blank page. A new idea.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your problem' })).toBeVisible();
   await hide.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByRole('heading', { name: 'A blank page. A new idea.' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Your problem' })).toBeHidden();
   await page.getByRole('button', { name: 'Blocks', exact: true }).focus();
   await page.keyboard.press('Tab');
   const textMode = page.getByRole('button', { name: 'Pseudocode', exact: true });

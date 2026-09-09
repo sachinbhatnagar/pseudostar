@@ -43,6 +43,7 @@ export type User = { id: string; email: string; admin?: boolean };
 export type SavedProgram = {
   id: string;
   title: string;
+  description?: string;
   problemId: string | null;
   draft: string;
   lastValidSource?: string | null;

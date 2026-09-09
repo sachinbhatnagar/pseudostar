@@ -439,7 +439,7 @@ test('guest library keeps programs across New, challenge switches, and reload', 
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByRole('textbox', { name: 'Program name' }).fill('Guest second');
   await write(page, 'OUTPUT "second local program"');
-  await page.getByRole('button', { name: 'Browse all problems', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose a problem', exact: true }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: /The inclusive gate/ })

@@ -65,7 +65,13 @@ describe('document save queue', () => {
     const first = c.save();
     await tick();
     c.setDoc((d) => ({ ...d, draft: 'second' }));
-    c.setDoc((d) => ({ ...d, draft: 'newest', title: 'Renamed', problemId: 'p2' }));
+    c.setDoc((d) => ({
+      ...d,
+      draft: 'newest',
+      title: 'Renamed',
+      description: 'Show a total.',
+      problemId: 'p2',
+    }));
     const second = c.save();
     expect(second).toBe(first);
     await vi.advanceTimersByTimeAsync(1500);
@@ -76,6 +82,7 @@ describe('document save queue', () => {
     expect(h.request.mock.calls[1][1].method).toBe('PUT');
     expect(body(h, 1)).toEqual({
       title: 'Renamed',
+      description: 'Show a total.',
       draft: 'newest',
       problemId: 'p2',
       lastValidSource: 'initial',

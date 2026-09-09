@@ -1,5 +1,6 @@
 export interface Problem {
   id: string;
+  canEdit?: boolean;
   title: string;
   statement: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';

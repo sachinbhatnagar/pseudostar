@@ -3,6 +3,7 @@ import type { EditorState } from '@codemirror/state';
 import { Decoration, EditorView } from '@codemirror/view';
 import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
+import { isBuiltin } from '../language/collections';
 
 export const pseudocodeLanguage = StreamLanguage.define({
   name: 'pseudocode',
@@ -14,14 +15,16 @@ export const pseudocodeLanguage = StreamLanguage.define({
     const word = stream.match(/^[A-Za-z_][A-Za-z0-9_]*/);
     if (word) {
       const name = (word as RegExpMatchArray)[0];
+      if (stream.match(/^\s*\(/, false)) return 'variableName.function';
       if (
-        /^(WHILE|ENDWHILE|FUNCTION|RETURN|CALL|JSON|INPUT|OUTPUT|PRINT|IF|THEN|ELSEIF|ELSE|ENDIF|FOR|TO|NEXT|IN|RANGE|END|SUB)$/.test(
+        /^(SET|WHILE|ENDWHILE|FUNCTION|RETURN|CALL|JSON|INPUT|OUTPUT|PRINT|IF|THEN|ELSEIF|ELSE|ENDIF|FOR|TO|NEXT|IN|RANGE|END|SUB)$/.test(
           name,
         )
       )
         return 'keyword';
       if (/^(AND|OR|NOT|MOD)$/.test(name)) return 'operator';
       if (/^(TRUE|FALSE)$/.test(name)) return 'bool';
+      if (isBuiltin(name)) return 'variableName.function';
       return 'variableName';
     }
     if (stream.match(/^(?:==|>=|<=|<>|!=|[+\-*/&=<>])/)) return 'operator';
@@ -37,6 +40,7 @@ export const pseudocodeHighlightStyle = HighlightStyle.define([
   { tag: [tags.number, tags.bool], color: '#79521d' },
   { tag: tags.operator, color: '#375b70' },
   { tag: tags.variableName, color: '#27352a' },
+  { tag: tags.function(tags.variableName), color: '#375b70', fontWeight: '600' },
   { tag: tags.punctuation, color: '#52614f' },
 ]);
 

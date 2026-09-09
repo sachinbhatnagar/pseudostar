@@ -15,6 +15,7 @@ it('isolates owners, retains raw drafts, rejects stale saves, deletes and restor
     'POST',
     {
       title: 'Draft',
+      description: 'Read a number and show its double.',
       problemId: 'problem-1',
       draft: 'IF unfinished',
       workspace: '{"blocks":{}}',
@@ -24,6 +25,7 @@ it('isolates owners, retains raw drafts, rejects stale saves, deletes and restor
   );
   expect(created.status).toBe(201);
   const { program } = (await created.json()) as any;
+  expect(program.description).toBe('Read a number and show its double.');
   for (const method of ['GET', 'PUT', 'DELETE']) {
     expect(
       (
@@ -370,4 +372,31 @@ it('migrates old duplicate names without removing saved work', async () => {
   expect(result.results).toHaveLength(2);
   expect(new Set(result.results.map((p) => String(p.title).toLowerCase())).size).toBe(2);
   expect(result.results.every((p) => p.draft === 'OUTPUT 7')).toBe(true);
+});
+
+it('updates and clears descriptions without losing them on older-client saves', async () => {
+  const user = await h.login();
+  const created = await h.request(
+    '/api/programs',
+    'POST',
+    { title: 'Task', draft: 'OUTPUT 30', description: 'Show the sum of 10 and 20.' },
+    user.cookie,
+  );
+  const { program } = (await created.json()) as any;
+  const path = `/api/programs/${program.id}`;
+  for (const [expectedRevision, description] of [
+    [1, undefined],
+    [2, 'Find the total.'],
+    [3, ''],
+  ] as const) {
+    const response = await h.request(
+      path,
+      'PUT',
+      { title: 'Task', draft: 'OUTPUT 30', expectedRevision, description },
+      user.cookie,
+    );
+    expect(response.status).toBe(200);
+    const saved = ((await response.json()) as any).program;
+    expect(saved.description).toBe(description ?? 'Show the sum of 10 and 20.');
+  }
 });

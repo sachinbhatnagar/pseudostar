@@ -1,12 +1,25 @@
-export const advancedReference = `Lists store several values. Indexes start at 1.
-items = [4, 7, 9]
-OUTPUT items[2]
-items[1] = 6
+export const advancedReference = `SET stores or updates a value. No separate declaration is needed.
+SET count = 0
+SET count = count + 1
+SET count TO 2 is also accepted. Format changes it to SET count = 2.
+Existing count = 2 instructions still work. In a condition, = compares values.
 
-Read a list with INPUT JSON items. Enter [4, 7, 9]. Normal INPUT still reads a number or text.
+Lists store several values. Indexes start at 1.
+SET items = [4, 7, 9]
+OUTPUT items[2]
+SET items[1] = 6
+SET count = LENGTH(items)
+OUTPUT LENGTH(items)
+Use a function inside SET, OUTPUT, conditions, loop bounds, or another function call.
+The Function result block stores a function result. Enter its name and inputs.
+For a calculation such as LENGTH(items) + 1, enter it in the SET block value field.
+CALL runs a function without storing or showing its result. Use SET or OUTPUT when you need the result.
+
+Read a list with INPUT JSON items. Enter [4, 7, 9]. Never use plain INPUT for a list: it reads the brackets as text, and LENGTH then counts characters instead of items.
+Normal INPUT still reads a number or text.
 
 WHILE count < 5
-    count = count + 1
+    SET count = count + 1
 ENDWHILE
 Give count a value before the loop. Make sure the condition can become false.
 
@@ -22,12 +35,13 @@ CALL REMOVE(items, position) removes a list item.
 SLICE(items, first, last) copies a non-empty range, including both ends. It also works on text.
 Text indexes use UTF-16 positions. Emoji may use two positions.
 
-scores = MAP()
+SET scores = MAP()
 CALL PUT(scores, "Ada", 8)
 OUTPUT GET(scores, "Ada")
 HAS(scores, "Ada") checks for a key before GET. KEYS(scores) and VALUES(scores) return lists.
 
-seen = SET()
+SET seen = SET()
+SET at the start stores a variable. SET() creates an empty collection of unique values.
 CALL ADD(seen, 4)
 HAS(seen, 4) checks membership. Repeated values are stored once.
 CALL REMOVE(seen, 4) removes a value. REMOVE also removes a map key.

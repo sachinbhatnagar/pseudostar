@@ -13,6 +13,31 @@ const dropdown = (name: string, options: [string, string][]) => ({
   name,
   options,
 });
+Blockly.Extensions.register('ps_assignment_syntax', function () {
+  const prefix = this.getField('PREFIX')!;
+  const row = this.inputList.find((input) => input.fieldRow.includes(prefix))!;
+  const syntax = this.appendDummyInput('SYNTAX');
+  syntax.setVisible(false);
+  prefix.setValidator((value) => {
+    const from = value === 'SET' ? syntax : row;
+    const to = value === 'SET' ? row : syntax;
+    const index = from.fieldRow.indexOf(prefix);
+    if (index !== -1) {
+      from.fieldRow.splice(index, 1);
+      to.fieldRow.unshift(prefix);
+    }
+    prefix.setVisible(value === 'SET');
+    return value;
+  });
+  (this as Blockly.BlockSvg).customContextMenu = (options) => {
+    const useSet = prefix.getValue() !== 'SET';
+    options.push({
+      text: useSet ? 'Use SET' : 'Use plain assignment',
+      enabled: true,
+      callback: () => prefix.setValue(useSet ? 'SET' : ''),
+    });
+  };
+});
 Blockly.common.defineBlocksWithJsonArray([
   {
     type: 'ps_output',
@@ -44,11 +69,37 @@ Blockly.common.defineBlocksWithJsonArray([
   },
   {
     type: 'ps_set',
-    message0: '%1 = %2',
-    args0: [field('NAME', 'total'), field('EXPR', '0')],
+    message0: '%1 %2 = %3',
+    args0: [
+      dropdown('PREFIX', [
+        ['SET', 'SET'],
+        ['Plain assignment', ''],
+      ]),
+      field('NAME', 'total'),
+      field('EXPR', '0'),
+    ],
     previousStatement: null,
     nextStatement: null,
     style: 'variable',
+    extensions: ['ps_assignment_syntax'],
+  },
+  {
+    type: 'ps_function_value',
+    message0: '%1 %2 = %3 ( %4 )',
+    args0: [
+      dropdown('PREFIX', [
+        ['SET', 'SET'],
+        ['Plain assignment', ''],
+      ]),
+      field('NAME', 'count'),
+      field('FUNCTION', 'LENGTH'),
+      field('ARGS', 'items'),
+    ],
+    previousStatement: null,
+    nextStatement: null,
+    style: 'variable',
+    extensions: ['ps_assignment_syntax'],
+    tooltip: 'Run a function and store its result. For example: SET count = LENGTH(items).',
   },
   {
     type: 'ps_while',
@@ -273,7 +324,13 @@ export const theme = Blockly.Theme.defineTheme('pseudostar', {
 export const palette = [
   { type: 'ps_output', label: 'OUTPUT', hint: 'Show a value', category: 'output' },
   { type: 'ps_input', label: 'INPUT', hint: 'Ask for a value', category: 'input' },
-  { type: 'ps_set', label: 'variable = value', hint: 'Store a value', category: 'variable' },
+  { type: 'ps_set', label: 'SET', hint: 'Store or update a value', category: 'variable' },
+  {
+    type: 'ps_function_value',
+    label: 'Function result',
+    hint: 'Store the result of function',
+    category: 'variable',
+  },
   { type: 'ps_if', label: 'IF / ELSE', hint: 'Make a decision', category: 'selection' },
   { type: 'ps_for', label: 'FOR / NEXT', hint: 'Repeat instructions', category: 'loop' },
   { type: 'ps_while', label: 'WHILE', hint: 'Repeat while a condition is true', category: 'loop' },
@@ -308,7 +365,10 @@ export function sourceFor(ws: Blockly.Workspace, selected?: Blockly.Block) {
         text = `INPUT ${f('FORMAT') === 'JSON' ? 'JSON ' : ''}${f('NAME')}`;
         break;
       case 'ps_set':
-        text = `${f('NAME')} = ${f('EXPR')}`;
+        text = `${f('PREFIX') === 'SET' ? 'SET ' : ''}${f('NAME')} = ${f('EXPR')}`;
+        break;
+      case 'ps_function_value':
+        text = `${f('PREFIX') === 'SET' ? 'SET ' : ''}${f('NAME')} = ${f('FUNCTION')}(${f('ARGS')})`;
         break;
       case 'ps_while':
         text = `WHILE ${f('EXPR')}\n${body('BODY')}${pad}ENDWHILE`;
@@ -395,10 +455,28 @@ export function programToWorkspace(program: Program, ws: Blockly.Workspace, reco
           };
           break;
         case 'assign':
-          block = { ...block, type: 'ps_set', fields: { NAME: s.name, EXPR: s.value.raw } };
-          break;
         case 'indexedAssign':
-          block = { ...block, type: 'ps_set', fields: { NAME: s.target.raw, EXPR: s.value.raw } };
+          block =
+            s.value.kind === 'invoke'
+              ? {
+                  ...block,
+                  type: 'ps_function_value',
+                  fields: {
+                    PREFIX: s.set ? 'SET' : '',
+                    NAME: s.kind === 'assign' ? s.name : s.target.raw,
+                    FUNCTION: s.value.name,
+                    ARGS: s.value.args.map((a) => a.raw).join(', '),
+                  },
+                }
+              : {
+                  ...block,
+                  type: 'ps_set',
+                  fields: {
+                    PREFIX: s.set ? 'SET' : '',
+                    NAME: s.kind === 'assign' ? s.name : s.target.raw,
+                    EXPR: s.value.raw,
+                  },
+                };
           break;
         case 'invoke':
           block = { ...block, type: 'ps_invoke', fields: { EXPR: s.expression.raw } };

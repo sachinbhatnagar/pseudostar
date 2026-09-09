@@ -2,7 +2,12 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { build } from 'esbuild';
 import { readFile, readdir } from 'node:fs/promises';
 export const origin = 'https://pseudostar.test';
-export async function harness(options: { groq?: boolean; generations?: unknown[] } = {}) {
+export async function harness(
+  options: {
+    groq?: boolean;
+    generations?: unknown[];
+  } = {},
+) {
   const built = await build({
     entryPoints: ['worker/index.ts'],
     bundle: true,
@@ -40,7 +45,7 @@ export async function harness(options: { groq?: boolean; generations?: unknown[]
           explanations.push(payload);
           if (
             options.generations &&
-            JSON.stringify(payload.response_format).includes('problem_solution')
+            JSON.stringify(payload.response_format).includes('publication_problem')
           )
             return Response.json({
               choices: [

@@ -1,9 +1,13 @@
 # LeetCode imports and advanced practice
 
+Superseded: the importer is replaced by publishing user-written pseudocode.
+See [the current workflow](../../../code/README.md#community-problems). Keep the future learning scope below for later work.
+
 Date: 9 September 2026
 
 Status: Approved. Source policy revised by the user: use original or licensed
-statements with LeetCode reference links. Do not scrape LeetCode.
+statements with LeetCode reference links. Latest user revision: fetch public
+details automatically; show manual entry only if retrieval or parsing fails.
 
 ## Objective
 
@@ -69,19 +73,23 @@ or Python on the server.
 3. Look up that identity. Open an approved entry or the user's existing draft.
    If another user owns a pending draft, show that the problem is already under
    review without exposing its private contents.
-4. Reserve the source identity before fetching or generating. A database unique
-   constraint must prevent simultaneous submissions from creating duplicates.
-5. Ask the contributor for an original or licensed statement, examples, and
-   constraints. Record their rights declaration.
-6. Retain the canonical reference link. Do not retrieve LeetCode content.
+4. Fetch public details through the fixed LeetCode endpoint. Do not follow
+   redirects, use private sessions, or retrieve paid content. Apply time and size limits.
+5. Fill the statement, examples, and constraints automatically. Show manual
+   entry only if retrieval or parsing fails. Require review and a rights declaration.
+6. Retain the canonical reference link. Reserve its identity when saving the
+   draft; a database unique constraint prevents simultaneous duplicate submissions.
 7. Generate and validate a candidate solution. Save the results and stage status.
 8. Enable contributor practice after execution and block checks pass. Label the
    draft "Not reviewed". Send it to the admin review queue.
 9. Publish only after admin approval of the checked content revision.
 
-Show the source link and attribution. LeetCode's terms prohibit scraping and
+Keep the source link in the contributor/admin workflow. Do not add LeetCode
+branding or reference links to the learner-facing problem statement. Preserve
+author or licence attribution. LeetCode's terms prohibit scraping and
 restrict content reuse: https://leetcode.com/terms/ (checked 9 September 2026).
-The user selected original or licensed statements instead of automated retrieval.
+Public retrieval does not grant permission to republish. Keep the original or
+licensed content requirement and admin review after automatic retrieval.
 
 ## Generation and checks
 

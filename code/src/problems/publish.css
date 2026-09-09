@@ -1,0 +1,41 @@
+.publish-panel {
+  display: grid;
+  gap: 16px;
+}
+.publish-panel label {
+  display: grid;
+  gap: 8px;
+  font-weight: 500;
+}
+.publish-panel textarea {
+  width: 100%;
+  padding: 12px;
+  min-width: 0;
+  resize: vertical;
+  color: inherit;
+  font: inherit;
+  border: 1px solid #9bb092;
+  border-radius: 6px;
+  background: #fff;
+}
+.publish-panel summary {
+  cursor: pointer;
+  padding-block: 8px;
+}
+.publish-panel pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.publish-panel .publish-note {
+  font-size: 13px;
+  color: #52614f;
+}
+.publish-panel button {
+  min-height: 44px;
+  justify-self: start;
+}
+.publish-panel li {
+  margin-block: 8px;
+  overflow-wrap: anywhere;
+}

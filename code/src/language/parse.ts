@@ -130,11 +130,16 @@ export function parse(source: string): ParseResult {
       at++;
       return { ...b, kind: 'invoke', expression };
     }
-    if ((m = text.match(/^([A-Za-z_][A-Za-z0-9_]*\[.+\]) = (.+)$/))) {
-      const target = parseExpression(m[1]);
-      if (target.kind !== 'index') fail('Choose an indexed list item.');
+    if ((m = text.match(/^(SET\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\[.+\])?)\s*(=|TO)\s*(.+)$/))) {
+      if (m[3] === 'TO' && !m[1]) fail('Use SET before an assignment with TO.');
+      const target = parseExpression(m[2]);
+      const value = parseExpression(m[4]);
       at++;
-      return { ...b, kind: 'indexedAssign', target, value: parseExpression(m[2]) };
+      const syntax = m[1] ? { set: true } : {};
+      if (target.kind === 'name')
+        return { ...b, ...syntax, kind: 'assign', name: target.name, value };
+      if (target.kind !== 'index') fail('Choose a variable or an indexed list item.');
+      return { ...b, ...syntax, kind: 'indexedAssign', target, value };
     }
     if (text.startsWith('IF ')) {
       const first = thenCondition(text, 'IF');
@@ -185,9 +190,11 @@ export function parse(source: string): ParseResult {
       at++;
       return { ...b, kind: 'call', name: m[1] };
     }
-    if ((m = text.match(new RegExp(`^(${identifier}) = (.+)$`)))) {
+    if (/^[A-Za-z_][A-Za-z0-9_]*\s*\(/.test(text)) {
+      const expression = parseExpression(text);
+      if (expression.kind !== 'invoke') fail('Use SET or OUTPUT to use this calculation.');
       at++;
-      return { ...b, kind: 'assign', name: m[1], value: parseExpression(m[2]) };
+      return { ...b, kind: 'invoke', expression };
     }
     return fail(
       `Cannot read “${text.slice(0, 60)}”. Use a textbook instruction such as INPUT or OUTPUT.`,

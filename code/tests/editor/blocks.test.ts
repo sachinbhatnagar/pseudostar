@@ -31,6 +31,17 @@ const visibleRow = (block: Blockly.Block, name: string) =>
     .join(' ');
 
 describe('block round trips', () => {
+  it('preserves SET and function-result blocks through execution and formatting', () => {
+    const source =
+      'SET items = [[1,2], [3]]\nSET count = LENGTH(items)\nSET items[2][1] = MAX(count, LENGTH(items[1]))\nOUTPUT items';
+    withWorkspace(source, (workspace) => {
+      expect(
+        workspace.getAllBlocks(false).filter((b) => b.type === 'ps_function_value'),
+      ).toHaveLength(2);
+      expect(sourceFor(workspace).trim()).toBe(source);
+      expect(run(sourceFor(workspace), []).output).toEqual(['[[1,2],[2]]']);
+    });
+  });
   for (const file of readdirSync('../references').filter((name) => name.endsWith('.md'))) {
     it(`preserves ${file}`, () => {
       const source = readFileSync(`../references/${file}`, 'utf8')

@@ -1,245 +1,164 @@
 import type { Env } from './env';
-import { body, fail, integer, str, ApiError } from './validation';
+import { ApiError, body, fail, str } from './validation';
 import { limit } from './rate-limit';
-import { canonicalUrl, sourceInput, candidateInput, validateCandidate } from './import-validation';
-import { generateImport } from './import-generation';
-import type { Candidate, ImportItem, ImportSource, Validation } from '../src/problems/shared';
-export const isAdmin = (user: { email: string } | null) =>
-  user?.email.toLowerCase() === 'mailme@sachinbhatnagar.com';
+import { parse } from '../src/language/parse';
+import { publicationCandidate, validateCandidate } from './publication-validation';
+import { generatePublication } from './publication-generation';
+import type { Candidate } from '../src/problems/shared';
 type User = { id: string; email: string };
-type Row = {
-  id: string;
-  owner: string;
-  source: string;
-  revision: number;
-  status: ImportItem['status'];
-  candidate: string | null;
-  validation: string | null;
-  published: string | null;
-  reference: string | null;
-  error: string | null;
-  updated_at: number;
-  lease_until: number | null;
-};
-const decode = <T>(v: string | null): T | null => (v ? (JSON.parse(v) as T) : null);
-function item(r: Row): ImportItem {
-  const expired = r.status === 'generating' && (r.lease_until ?? 0) < Date.now();
-  return {
-    id: r.id,
-    owner: r.owner,
-    source: JSON.parse(r.source),
-    revision: r.revision,
-    status: expired ? 'failed' : r.status,
-    candidate: decode(r.candidate),
-    validation: decode(r.validation),
-    error: expired ? 'Generation stopped. You can retry.' : r.error,
-    published: !!r.published,
-    updatedAt: r.updated_at,
-  };
-}
+
 export async function visibleCandidate(
   env: Env,
   id: string,
-  user: User | null,
+  _user: User | null,
 ): Promise<Candidate | null> {
-  const r = await env.DB.prepare('SELECT * FROM shared_problems WHERE id=?').bind(id).first<Row>();
-  if (!r) return null;
-  if (
-    user &&
-    (r.owner === user.id || isAdmin(user)) &&
-    r.status === 'review' &&
-    decode<Validation>(r.validation)?.passed
+  const row = await env.DB.prepare(
+    'SELECT published FROM shared_problems WHERE id=? AND published IS NOT NULL',
   )
-    return decode<Candidate>(r.candidate);
-  return decode<Candidate>(r.published);
+    .bind(id)
+    .first<{ published: string }>();
+  return row ? JSON.parse(row.published) : null;
 }
 export async function sharedList(env: Env, user: User | null, after = '') {
   const rows = (
     await env.DB.prepare(
-      'SELECT * FROM shared_problems WHERE (published IS NOT NULL OR owner=? OR ?=1) AND id>? ORDER BY id LIMIT 101',
+      'SELECT id,owner,published FROM shared_problems WHERE published IS NOT NULL AND id>? ORDER BY id LIMIT 101',
     )
-      .bind(user?.id ?? '', isAdmin(user) ? 1 : 0, after)
-      .all<Row>()
+      .bind(after)
+      .all<{ id: string; owner: string; published: string }>()
   ).results;
-  const problems = rows.slice(0, 100).flatMap((r) => {
-    const own = !!user && (r.owner === user.id || isAdmin(user));
-    const draft = own && r.status === 'review' && decode<Validation>(r.validation)?.passed;
-    const c = decode<Candidate>(draft ? r.candidate : r.published);
-    return c ? [{ ...c.problem, ...(draft ? { reviewLabel: 'Not reviewed' } : {}) }] : [];
+  return Response.json({
+    problems: rows.slice(0, 100).map((r) => ({
+      ...(JSON.parse(r.published) as Candidate).problem,
+      canEdit: r.owner === user?.id,
+    })),
+    nextCursor: rows.length > 100 ? rows[99].id : null,
   });
-  return Response.json({ problems, nextCursor: rows.length > 100 ? rows[99].id : null });
 }
-export async function imports(
-  request: Request,
-  env: Env,
-  user: User,
-  id?: string,
-  action?: string,
-) {
-  const admin = isAdmin(user);
-  if (!id && request.method === 'GET') {
-    const rows = (
-      await env.DB.prepare(
-        'SELECT * FROM shared_problems WHERE owner=? OR ?=1 ORDER BY updated_at DESC LIMIT 200',
-      )
-        .bind(user.id, admin ? 1 : 0)
-        .all<Row>()
-    ).results;
-    return Response.json({ imports: rows.map(item), admin });
+async function owned(env: Env, id: string, user: User) {
+  const row = await env.DB.prepare(
+    'SELECT published,revision FROM shared_problems WHERE id=? AND owner=? AND published IS NOT NULL',
+  )
+    .bind(id, user.id)
+    .first<{ published: string; revision: number }>();
+  if (!row) fail(404, 'NOT_FOUND', 'Published problem not found.');
+  return row;
+}
+export async function authorProblem(request: Request, env: Env, user: User, id: string) {
+  if (request.method === 'PATCH') return publish(request, env, user, id);
+  const row = await owned(env, id, user);
+  if (request.method === 'GET') {
+    const candidate = JSON.parse(row.published) as Candidate;
+    return Response.json({
+      statement: candidate.problem.statement,
+      solution: candidate.solution,
+      revision: row.revision,
+    });
   }
-  if (!id && request.method === 'POST') {
-    const b = await body(request),
-      url = canonicalUrl(b.url);
-    const existing = await env.DB.prepare('SELECT * FROM shared_problems WHERE source_key=?')
-      .bind(url)
-      .first<Row>();
-    if (existing) return duplicate(existing, user);
-    const source = sourceInput(b);
-    await limit(env, `import:${user.id}`, 86400, 20);
-    const key = 'lc_' + crypto.randomUUID();
-    const r = await env.DB.prepare(
-      'INSERT INTO shared_problems(id,source_key,owner,source,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(source_key) DO NOTHING RETURNING *',
-    )
-      .bind(key, url, user.id, JSON.stringify(source), Date.now())
-      .first<Row>();
-    if (!r)
-      return duplicate(
-        (await env.DB.prepare('SELECT * FROM shared_problems WHERE source_key=?')
-          .bind(url)
-          .first<Row>())!,
-        user,
-      );
-    return Response.json({ item: item(r) }, { status: 201 });
-  }
-  if (!id) fail(405, 'METHOD_NOT_ALLOWED', 'Use a supported method.');
-  const row = await env.DB.prepare('SELECT * FROM shared_problems WHERE id=?')
-    .bind(id)
-    .first<Row>();
-  if (!row || (!admin && row.owner !== user.id)) fail(404, 'NOT_FOUND', 'Draft not found.');
-  const r = row!;
-  if (request.method === 'GET' && !action) return Response.json({ item: item(r) });
-  const b = await body(request),
-    revision = integer(b.revision, 'revision', 1, 2147483647);
-  if (revision !== r.revision)
-    fail(409, 'REVISION_CONFLICT', 'This draft changed. Reload before continuing.');
-  if (r.status === 'generating' && (r.lease_until ?? 0) > Date.now())
-    fail(409, 'GENERATION_ACTIVE', 'Generation is still running. Wait for it to finish.');
-  if (request.method === 'PUT' && !action) {
-    const source = sourceInput((b.source as Record<string, unknown>) ?? {});
-    if (source.url !== JSON.parse(r.source).url)
-      fail(400, 'SOURCE_LOCKED', 'The source link cannot change. Create a separate import.');
-    const reference = JSON.stringify(source) === r.source ? r.reference : null;
-    const candidate = b.candidate ? candidateInput(b.candidate, source, id!, revision + 1) : null;
-    const validation = candidate ? validateCandidate(candidate, reference) : null;
+  if (request.method !== 'DELETE') fail(405, 'METHOD_NOT_ALLOWED', 'Use GET, PATCH, or DELETE.');
+  const b = await body(request);
+  if (b.revision !== row.revision)
+    fail(409, 'PUBLICATION_CHANGED', 'This problem changed. Open it again before deleting.');
+  const deleted = await env.DB.prepare(
+    "UPDATE shared_problems SET published=NULL,status='draft',revision=revision+1,source_key='deleted:' || id,updated_at=? WHERE id=? AND owner=? AND revision=? AND published IS NOT NULL RETURNING id",
+  )
+    .bind(Date.now(), id, user.id, row.revision)
+    .first();
+  if (!deleted)
+    fail(409, 'PUBLICATION_CHANGED', 'This problem changed. Open it again before deleting.');
+  return Response.json({ deleted: true });
+}
+export async function publish(request: Request, env: Env, user: User, editId?: string) {
+  const previous = editId ? await owned(env, editId, user) : null;
+  const b = await body(request);
+  if (previous && b.revision !== previous.revision)
+    fail(409, 'PUBLICATION_CHANGED', 'This problem changed. Open it again before editing.');
+  const statement = str(b.statement, 'problem statement', 12000);
+  const solution = str(b.solution, 'pseudocode', 20000);
+  const parsed = parse(solution);
+  if (!parsed.ok) fail(422, 'INVALID_PSEUDOCODE', parsed.diagnostics[0].message);
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(JSON.stringify([user.id, statement.trim(), solution.trim()])),
+  );
+  const key =
+    'program:' +
+    Array.from(new Uint8Array(digest), (x) => x.toString(16).padStart(2, '0')).join('');
+  const existing = await env.DB.prepare('SELECT published FROM shared_problems WHERE source_key=?')
+    .bind(key)
+    .first<{ published: string }>();
+  if (!editId && existing?.published)
+    return Response.json({ problem: (JSON.parse(existing.published) as Candidate).problem });
+  await limit(env, `publish:${user.id}`, 86400, 10);
+  const id = editId ?? 'shared_' + crypto.randomUUID();
+  const candidate = publicationCandidate(
+    await generatePublication(env, statement, false, solution),
+    solution,
+    id,
+    previous ? previous.revision + 1 : 1,
+  );
+  const independent = (await generatePublication(env, candidate.problem.statement, true)) as {
+    solution?: unknown;
+  };
+  const reference = str(independent.solution, 'reference solution', 20000);
+  if (!parse(reference).ok)
+    fail(
+      502,
+      'INVALID_REFERENCE',
+      'AI could not create valid check code. Your program has not failed. Try publishing again.',
+    );
+  const validation = validateCandidate(candidate, reference);
+  if (!validation.passed)
+    throw new ApiError(
+      422,
+      'CHECKS_FAILED',
+      'The program did not pass the checks. Review the results and update your code or statement.',
+      { checks: validation.checks.filter((c) => !c.passed) },
+    );
+  const record = JSON.stringify(candidate);
+  if (previous) {
     const updated = await env.DB.prepare(
-      'UPDATE shared_problems SET source=?,candidate=?,validation=?,reference=?,status=?,revision=revision+1,error=NULL,attempt=NULL,updated_at=? WHERE id=? AND revision=? RETURNING *',
+      'UPDATE shared_problems SET candidate=?,published=?,validation=?,reference=?,source=?,revision=revision+1,updated_at=? WHERE id=? AND owner=? AND revision=? AND published IS NOT NULL RETURNING id',
     )
       .bind(
-        JSON.stringify(source),
-        candidate ? JSON.stringify(candidate) : null,
-        validation ? JSON.stringify(validation) : null,
+        record,
+        record,
+        JSON.stringify(validation),
         reference,
-        validation?.passed ? 'review' : 'draft',
+        JSON.stringify({ statement, solution }),
         Date.now(),
         id,
-        revision,
+        user.id,
+        previous.revision,
       )
-      .first<Row>();
-    if (!updated) fail(409, 'REVISION_CONFLICT', 'This draft changed. Reload before continuing.');
-    return Response.json({ item: item(updated!) });
-  }
-  if (request.method === 'POST' && action === 'generate') {
-    if (!env.GROQ_API_KEY) fail(503, 'AI_UNAVAILABLE', 'Solution generation is not configured.');
-    await limit(env, `generate:${user.id}`, 86400, 10);
-    const attempt = crypto.randomUUID();
-    const claimed = await env.DB.prepare(
-      "UPDATE shared_problems SET status='generating',attempt=?,lease_until=?,error=NULL,updated_at=? WHERE id=? AND revision=? AND (status<>'generating' OR lease_until<?) RETURNING id",
-    )
-      .bind(attempt, Date.now() + 150000, Date.now(), id, revision, Date.now())
       .first();
-    if (!claimed)
-      fail(409, 'GENERATION_ACTIVE', 'This draft changed or is already generating. Reload.');
-    try {
-      const source = JSON.parse(r.source) as ImportSource;
-      const candidate = candidateInput(
-        await generateImport(env, source),
-        source,
-        id!,
-        revision + 1,
-      );
-      const independent = (await generateImport(env, source, true)) as { solution?: unknown };
-      const reference = str(independent?.solution, 'reference solution', 20000);
-      const validation = validateCandidate(candidate, reference);
-      const updated = await env.DB.prepare(
-        'UPDATE shared_problems SET candidate=?,reference=?,validation=?,status=?,revision=revision+1,attempt=NULL,lease_until=NULL,error=?,updated_at=? WHERE id=? AND revision=? AND attempt=? RETURNING *',
-      )
-        .bind(
-          JSON.stringify(candidate),
-          reference,
-          JSON.stringify(validation),
-          validation.passed ? 'review' : 'failed',
-          validation.passed ? null : 'Some checks failed. Review the results or generate again.',
-          Date.now(),
-          id,
-          revision,
-          attempt,
-        )
-        .first<Row>();
-      if (!updated)
-        fail(409, 'REVISION_CONFLICT', 'A newer attempt replaced this result. Reload the draft.');
-      return Response.json({ item: item(updated!) });
-    } catch (e) {
-      const error = e instanceof ApiError ? e.message : 'Generation stopped. Retry later.';
-      await env.DB.prepare(
-        "UPDATE shared_problems SET status='failed',error=?,attempt=NULL,lease_until=NULL,updated_at=? WHERE id=? AND revision=? AND attempt=?",
-      )
-        .bind(error, Date.now(), id, revision, attempt)
-        .run();
-      throw e instanceof ApiError ? e : new ApiError(503, 'GENERATION_FAILED', error);
-    }
+    if (!updated)
+      fail(409, 'PUBLICATION_CHANGED', 'This problem changed while checks ran. Open it again.');
+    return Response.json({ problem: candidate.problem });
   }
-  if (request.method === 'POST' && action === 'review') {
-    if (!admin) fail(403, 'ADMIN_REQUIRED', 'Only an admin can review a problem.');
-    if (b.action !== 'approve' && b.action !== 'reject')
-      fail(400, 'INVALID_ACTION', 'Choose approve or reject.');
-    const reason = str(b.reason ?? '', 'review reason', 2000, b.action === 'approve');
-    if (
-      b.action === 'approve' &&
-      (r.status !== 'review' || !decode<Validation>(r.validation)?.passed || !r.candidate)
+  const row = await env.DB.prepare(
+    "INSERT INTO shared_problems(id,source_key,owner,source,status,candidate,validation,published,reference,updated_at) VALUES(?,?,?,?,'published',?,?,?,?,?) ON CONFLICT(source_key) DO NOTHING RETURNING published",
+  )
+    .bind(
+      id,
+      key,
+      user.id,
+      JSON.stringify({ statement, solution }),
+      record,
+      JSON.stringify(validation),
+      record,
+      reference,
+      Date.now(),
     )
-      fail(409, 'CHECKS_REQUIRED', 'The current revision must pass its checks before approval.');
-    const logId = crypto.randomUUID();
-    // The log insert depends on the same revision and status as publication in one transaction.
-    const result = await env.DB.batch([
-      env.DB.prepare(
-        'INSERT INTO problem_reviews(id,problem_id,reviewer,revision,action,reason,created_at) SELECT ?,id,?,revision,?,?,? FROM shared_problems WHERE id=? AND revision=? AND status=?',
-      ).bind(logId, user.id, b.action, reason, Date.now(), id, revision, r.status),
-      env.DB.prepare(
-        'UPDATE shared_problems SET published=CASE WHEN ?=1 THEN candidate ELSE published END,status=?,error=?,revision=revision+1,updated_at=? WHERE id=? AND revision=? AND EXISTS(SELECT 1 FROM problem_reviews WHERE id=?) RETURNING *',
-      ).bind(
-        b.action === 'approve' ? 1 : 0,
-        b.action === 'approve' ? 'published' : 'rejected',
-        reason || null,
-        Date.now(),
-        id,
-        revision,
-        logId,
-      ),
-    ]);
-    const updated = result[1].results[0] as unknown as Row | undefined;
-    if (!updated) fail(409, 'REVISION_CONFLICT', 'This draft changed. Reload before reviewing.');
-    return Response.json({ item: item(updated!) });
-  }
-  return fail(405, 'METHOD_NOT_ALLOWED', 'Use a supported method.');
-}
-function duplicate(r: Row, user: User) {
-  const own = r.owner === user.id || isAdmin(user);
-  return Response.json({
-    duplicate: true,
-    ...(own ? { item: item(r) } : {}),
-    ...(r.published ? { problem: decode<Candidate>(r.published)!.problem } : {}),
-    message: r.published
-      ? 'This problem is already in the shared library.'
-      : 'This problem already has a draft. It has not been published yet.',
-  });
+    .first<{ published: string }>();
+  const saved =
+    row ??
+    (await env.DB.prepare('SELECT published FROM shared_problems WHERE source_key=?')
+      .bind(key)
+      .first<{ published: string }>());
+  if (!saved?.published) fail(409, 'PUBLISH_CONFLICT', 'Publication changed. Try again.');
+  return Response.json(
+    { problem: (JSON.parse(saved.published) as Candidate).problem },
+    { status: row ? 201 : 200 },
+  );
 }

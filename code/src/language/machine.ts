@@ -266,6 +266,10 @@ export function createMachine(program: Program, custom: Partial<RunLimits> = {})
           break;
         }
         case 'call': {
+          if (isBuiltin(s.name)) {
+            yield* evaluate({ kind: 'invoke', name: s.name, args: [], raw: `${s.name}()` }, depth);
+            break;
+          }
           const routine = routines.get(s.name);
           if (!routine) issue('UNKNOWN_ROUTINE', `${s.name} has not been defined.`);
           if (routine!.kind === 'function')

@@ -99,34 +99,45 @@ Use `npm run fonts:setup`, `npm run deploy:preflight`, `npm run test:preflight`,
 
 ## Community problems
 
-Open **Problems**, then **Contribute or review problems** while signed in.
-Supply a LeetCode reference link and an original or licensed statement, limits,
-and examples. The app does not scrape LeetCode. A source link can have only one
-import record, including under simultaneous submissions.
+For a blank program, enter its title and detailed problem statement in **Your problem**.
+Both fields save with the program. On mobile, use **Add or edit problem details**.
+Create a program, sign in, then select **Publish** beside **Save**.
+The saved statement is filled in for you.
+Enter the problem statement, including its input, output, and limits. Select
+**Check and publish**. AI rewrites the statement in ASD-STE100 style for Grade 8
+and above, creates a title, and assigns Easy, Medium, or Hard difficulty.
+Your pseudocode stays unchanged.
 
-Save the draft, then select **Generate solution**. Generation uses the configured
-Groq provider and `openai/gpt-oss-120b` model. It can take about two minutes.
-There are 20 new imports and 10 generation attempts per account per 24-hour rate
-window. Refresh a draft after an interrupted request before retrying.
+The server generates test cases from the statement and checks the program,
+its block conversion, and a separate reference solution. Only programs that
+pass all checks enter the shared library. Failed checks appear in the form.
+There are 10 publication attempts per account per 24-hour rate window.
+Repeating a successful submission returns the existing problem.
 
-Checked drafts can be practised by their contributor before review. The verified
-account `mailme@sachinbhatnagar.com` is the initial admin. That account sees review
-controls in the community panel. An edit invalidates the prior approval checks;
-a published version stays available while its replacement is under review.
+Open **Problems** to see shared problems beside the built-in problems.
+Authors can select **Edit or delete** below their problem in the library.
+Edits must pass the publication checks again. Delete requires confirmation.
+Other users cannot edit or delete the problem.
+Filter by difficulty. Language guidance is available in **Help**.
 
-Approved problems join the existing list. Filter by topic or difficulty. The
-**Advanced pseudocode guide** in the problem list explains lists, functions,
-recursion, maps, sets, and their operations. Indexes start at 1. `INPUT JSON name`
-reads structured values such as `[2,4,6]`; normal `INPUT` keeps its existing rules.
+Use `SET count = LENGTH(items)` to store a function result, or `OUTPUT LENGTH(items)`
+to show it. The **SET** block accepts a value or calculation. The **Function result**
+block has fields for the result variable, function name, and inputs. Functions also
+work in conditions, loop bounds, indexed assignments, and other function calls.
+`SET count TO 3` formats as `SET count = 3`. Existing `count = 3` programs still work.
+`SET seen = SET()` stores a new set; the statement keyword and collection function
+have different roles. `CALL` discards a function result. Use it for collection changes.
+The parser, runner, block conversion, lesson checks, and publication checks use the same
+language implementation. These extensions follow PseudoStar's textbook conventions;
+they do not claim conformance to every pseudocode dialect.
 Function inputs are copied and function variables are local. Existing subroutines
 continue to share their caller's variables.
 
 The local database needs migration `0003_shared_problems.sql`; run `npm run db:local`.
-Use `npm run dev` and `npm run dev:api` for local testing. The admin still signs in
-with the normal email code. No account or authentication bypass is installed.
+Use `npm run dev` and `npm run dev:api` for local testing. Sign in with the normal email code.
 
 Tests cover text/block conversion, bounded execution, original examples,
 additional cases, and comparison against a separately generated reference.
-Agreement is evidence for review, not a correctness guarantee. Problems that fail
-checks stay private. Linked nodes, custom records, heaps, and related problem
+Agreement is supporting evidence, not a correctness guarantee. Problems that fail
+checks are not published. Linked nodes, custom records, heaps, and related problem
 families remain [future scope](../docs/leetcode-import-scope.md).

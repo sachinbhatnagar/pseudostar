@@ -292,3 +292,21 @@ it('repairs old duplicate guest names without losing programs or drafts', () => 
   expect(new Set(programs.map((p) => p.title.toLowerCase())).size).toBe(2);
   expect(programs.find((p) => p.id === 'two')?.draft).toBe('OUTPUT 2');
 });
+
+it('keeps the problem statement through guest reload and copy and clears it for a new program', async () => {
+  const h = harness();
+  h.c.start();
+  h.c.setDoc((d) => ({ ...d, description: 'Show the sum of 10 and 20.' }));
+  const id = h.c.getSnapshot().doc.localId;
+  h.c.stop();
+  const restored = h.create();
+  restored.start();
+  expect(restored.getSnapshot().doc.description).toBe('Show the sum of 10 and 20.');
+  restored.copy('Another task');
+  expect(restored.getSnapshot().doc.description).toBe('Show the sum of 10 and 20.');
+  await restored.fresh('New task', '', null);
+  expect(restored.getSnapshot().doc.description ?? '').toBe('');
+  await restored.load(getGuestProgram(id, h.storage));
+  expect(restored.getSnapshot().doc.description).toBe('Show the sum of 10 and 20.');
+  restored.stop();
+});

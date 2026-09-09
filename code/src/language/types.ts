@@ -22,7 +22,7 @@ export type Statement = Base &
   (
     | { kind: 'input'; name: string; json?: boolean }
     | { kind: 'output'; keyword: 'OUTPUT' | 'PRINT'; values: Expr[] }
-    | { kind: 'assign'; name: string; value: Expr }
+    | { kind: 'assign'; name: string; value: Expr; set?: boolean }
     | {
         kind: 'if';
         branches: { condition: Expr; body: Statement[]; thenNewline: boolean }[];
@@ -39,7 +39,7 @@ export type Statement = Base &
     | { kind: 'sub'; name: string; body: Statement[] }
     | { kind: 'call'; name: string }
     | { kind: 'invoke'; expression: Expr }
-    | { kind: 'indexedAssign'; target: Expr; value: Expr }
+    | { kind: 'indexedAssign'; target: Expr; value: Expr; set?: boolean }
     | { kind: 'while'; condition: Expr; body: Statement[] }
     | { kind: 'function'; name: string; parameters: string[]; body: Statement[] }
     | { kind: 'return'; value: Expr }

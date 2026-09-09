@@ -5,6 +5,21 @@ import { format } from '../../src/language/format';
 
 describe('advanced programs', () => {
   const cases: [string, string[], string[]][] = [
+    [
+      'SET items = [4, 7, 9]\nSET count TO LENGTH(items)\nSET items[2]=count + 1\nOUTPUT items\nOUTPUT LENGTH("word")',
+      [],
+      ['[4,4,9]', '4'],
+    ],
+    [
+      'FUNCTION size(items)\nSET n = LENGTH(items)\nRETURN n\nEND FUNCTION\nSET items = [[1], [2,3]]\nSET items[1][1] = size(items[2])\nSET n = MAX(size(items), LENGTH(items[1]))\nOUTPUT n\nIF LENGTH(items) = 2 THEN\nOUTPUT size(items[2])\nENDIF\nFOR i = 1 TO LENGTH(items)\nOUTPUT i\nNEXT i',
+      [],
+      ['2', '2', '1', '2'],
+    ],
+    [
+      'SET seen = SET()\nADD(seen, 4)\nCALL ADD(seen, 4)\nSET count = LENGTH(seen)\nOUTPUT count',
+      [],
+      ['1'],
+    ],
     ['a = [[4, 7], [8, 9]]\na[1][2] = 6\nOUTPUT a[1][2]', [], ['6']],
     ['n = 0\nWHILE n < 3\n    n = n + 1\nENDWHILE\nOUTPUT n', [], ['3']],
     [
@@ -36,6 +51,11 @@ describe('advanced programs', () => {
       if (parsed.ok) expect(run(format(parsed.program).source, inputs).output).toEqual(expected);
     });
   it('rejects invalid indexes, return, and missing return', () => {
+    expect(run('SET n = LENGTH(4)', []).error?.code).toBe('EXPECTED_COLLECTION');
+    expect(run('SET n = LENGTH()', []).error?.code).toBe('ARGUMENT_COUNT');
+    expect(run('SET n = missing(4)', []).error?.code).toBe('UNKNOWN_ROUTINE');
+    expect(parse('SET n =').ok).toBe(false);
+    expect(parse('SET LENGTH(items) = 4').ok).toBe(false);
     expect(run('a = [4]\nOUTPUT a[0]', []).error?.code).toBe('INVALID_INDEX');
     expect(run('RETURN 1', []).error?.code).toBe('RETURN_OUTSIDE_FUNCTION');
     expect(run('FUNCTION f()\nEND FUNCTION\nOUTPUT f()', []).error?.code).toBe('MISSING_RETURN');

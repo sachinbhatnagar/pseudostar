@@ -91,6 +91,10 @@ export function programInput(b: Record<string, unknown>) {
   }
   return {
     title: programTitle(b.title),
+    description:
+      b.description === undefined
+        ? undefined
+        : str(b.description, 'problem statement', 12000, true),
     draft: str(b.draft, 'draft', 204800, true),
     workspace,
     problemId:

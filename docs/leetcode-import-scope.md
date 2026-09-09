@@ -1,5 +1,8 @@
 # LeetCode import scope
 
+Superseded: the importer is replaced by publishing user-written pseudocode.
+See [the current workflow](../code/README.md#community-problems). Keep the future learning scope below for later work.
+
 Design decisions agreed during brainstorming on 9 September 2026.
 Implemented locally on feat/leetcode-import. The approved
 [design spec](superpowers/specs/2026-09-09-leetcode-import-design.md) defines the release.
@@ -22,9 +25,9 @@ Provide progressive hints. Keep the reference solution behind an explicit reveal
   variables, and recursion.
 - Support maps and sets.
 - Apply limits to execution, recursion, and collection sizes.
-- Accept LeetCode reference links with contributor-authored or licensed
-  statements, examples, and constraints. Record the rights declaration.
-  Do not scrape LeetCode. This replaces the earlier automatic import proposal.
+- Fetch public details automatically from a LeetCode problem link. Ask for
+  manual details only if retrieval or parsing fails. Require original or
+  licensed content and record the rights declaration before saving.
 - Prevent duplicate imports of the same source problem.
 - Generate original solutions with AI. Use internal reasoning to produce clear
   pseudocode, a concise algorithm explanation, and test cases.
