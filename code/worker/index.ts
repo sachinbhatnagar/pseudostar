@@ -3,7 +3,7 @@ import { requestCode, verify } from './auth';
 import { logout, session } from './sessions';
 import { cleanup, programs } from './programs';
 import { progress } from './progress';
-import { ApiError, fail, body } from './validation';
+import { ApiError, fail, body, str } from './validation';
 import { internalSolutions } from '../internal/solutions';
 import { authorProblem, publish, sharedList, visibleCandidate } from './shared-problems';
 import { explain } from './explanations';
@@ -48,6 +48,7 @@ async function api(request: Request, env: Env) {
     if (!source) fail(404, 'NOT_FOUND', 'Solution not found.');
     return Response.json({ source, ...(imported ? { explanation: imported.explanation } : {}) });
   }
+  const profileRoute = url.pathname === '/api/profile' && request.method === 'PATCH';
   const isLogout = url.pathname === '/api/auth/logout' && request.method === 'POST';
   const authorRoute = /^\/api\/problems\/([^/]+)\/author$/.exec(url.pathname);
   const publishRoute = url.pathname === '/api/problems/publish' && request.method === 'POST';
@@ -55,6 +56,7 @@ async function api(request: Request, env: Env) {
   const progressRoute = /^\/api\/progress(?:\/([^/]+))?$/.exec(url.pathname);
   const explanationRoute = url.pathname === '/api/explanations' && request.method === 'POST';
   if (
+    !profileRoute &&
     !authorRoute &&
     !publishRoute &&
     !programRoute &&
@@ -64,6 +66,14 @@ async function api(request: Request, env: Env) {
   )
     fail(404, 'NOT_FOUND', 'API route not found.');
   if (!user) fail(401, 'SIGN_IN_REQUIRED', 'Sign in to continue.');
+  if (profileRoute) {
+    const b = await body(request);
+    const name = str(b.name, 'name', 400).trim();
+    if (Array.from(name).length > 100)
+      fail(400, 'INVALID_NAME', 'Use a name with 1 to 100 characters.');
+    await env.DB.prepare('UPDATE users SET name=? WHERE id=?').bind(name, user.id).run();
+    return Response.json({ user: { ...user, name } });
+  }
   if (authorRoute) return authorProblem(request, env, user, authorRoute[1]);
   if (publishRoute) return publish(request, env, user);
   if (isLogout) return logout(request, env);

@@ -55,6 +55,79 @@ function ActionIcon({
     </svg>
   );
 }
+function AccountName({ user, onChange }: { user: User; onChange: (user: User) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  if (!editing)
+    return (
+      <button
+        className="account-name"
+        title="Edit your name"
+        onClick={() => {
+          setName(user.name ?? user.email);
+          setError('');
+          setEditing(true);
+        }}
+      >
+        {user.name ?? user.email}
+      </button>
+    );
+  return (
+    <form
+      className="account-name-form"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (busy) return;
+        if (!name.trim()) {
+          setError('Enter a name.');
+          return;
+        }
+        setBusy(true);
+        setError('');
+        try {
+          const result = await api<{ user: User }>('/profile', {
+            method: 'PATCH',
+            headers: { 'X-Pseudostar-User': user.id },
+            body: JSON.stringify({ name: name.trim() }),
+          });
+          onChange(result.user);
+          setEditing(false);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Name could not be saved.');
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <input
+        autoFocus
+        aria-label="Your name"
+        aria-describedby={error ? 'account-name-error' : undefined}
+        aria-invalid={!!error}
+        maxLength={100}
+        value={name}
+        disabled={busy}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && !busy) setEditing(false);
+        }}
+      />
+      <button disabled={busy || !name.trim()} type="submit">
+        {busy ? 'Saving…' : 'Save name'}
+      </button>
+      <button disabled={busy} type="button" onClick={() => setEditing(false)}>
+        Cancel
+      </button>
+      {error && (
+        <p id="account-name-error" role="alert">
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}
 function Brand() {
   return (
     <a className="brand" href="/" aria-label="PseudoStar home">
@@ -162,6 +235,9 @@ export default function App() {
     <Studio
       key={user?.id ?? 'guest'}
       user={user}
+      onUserChange={(updated) =>
+        setUser((current) => (current?.id === updated.id ? updated : current))
+      }
       onSignIn={() => {
         try {
           sessionStorage.removeItem('pseudostar:guest');
@@ -177,15 +253,18 @@ export default function App() {
 }
 function Studio({
   user,
+  onUserChange,
   onSignIn,
   onSignOut,
 }: {
   user: User | null;
+  onUserChange: (user: User) => void;
   onSignIn: () => void;
   onSignOut: () => void;
 }) {
   const document = useDocument(user, 'OUTPUT "What will you build today?"'),
     { doc, setDoc, status, error } = document;
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [sharedError, setSharedError] = useState('');
   const [algorithmExplanation, setAlgorithmExplanation] = useState('');
@@ -579,7 +658,7 @@ function Studio({
         <div className="account-area">
           {user ? (
             <>
-              <span>{user.email}</span>
+              <AccountName user={user} onChange={onUserChange} />
               <button
                 disabled={leaving}
                 onClick={() =>
@@ -613,10 +692,10 @@ function Studio({
         </p>
       )}
       <main
-        className={`production-studio ${!problem ? 'own-problem' : ''}`}
+        className={`production-studio ${!problem ? 'own-problem' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
         inert={leaving || undefined}
       >
-        <aside className={`lesson ${helpOpen ? 'lesson-open' : ''}`}>
+        <aside id="problem-panel" className={`lesson ${helpOpen ? 'lesson-open' : ''}`}>
           <button
             className="mobile-challenge"
             aria-expanded={helpOpen}
@@ -698,7 +777,6 @@ function Studio({
                 <section className="problem-brief" aria-label="Your problem">
                   <h1>Your problem</h1>
                   <label>
-                    Title
                     <input
                       aria-label="Program name"
                       maxLength={120}
@@ -714,7 +792,6 @@ function Studio({
                     />
                   </label>
                   <label>
-                    Problem statement
                     <textarea
                       aria-label="Detailed problem statement"
                       rows={3}
@@ -728,12 +805,28 @@ function Studio({
                 </section>
               </>
             )}
-            <button className="change-problem" onClick={() => setLibrary(true)}>
-              {problem ? 'Browse all problems' : 'Choose a problem'}
-            </button>
           </div>
         </aside>
         <section className="editor-workbench" ref={workbench}>
+          <button
+            className="sidebar-toggle"
+            aria-label={sidebarCollapsed ? 'Show problem panel' : 'Hide problem panel'}
+            title={sidebarCollapsed ? 'Show problem panel' : 'Hide problem panel'}
+            aria-controls="problem-panel"
+            aria-expanded={!sidebarCollapsed}
+            onClick={() => setSidebarCollapsed((v) => !v)}
+          >
+            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+              <path
+                d={sidebarCollapsed ? 'm7 5 5 5-5 5' : 'm12 5-5 5 5 5'}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
           <div className="document-heading">
             {problem && (
               <input

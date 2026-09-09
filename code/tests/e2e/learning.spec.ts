@@ -80,7 +80,7 @@ test('confirmed solution opens aligned code panes with differences', async ({ pa
     route.fulfill({ json: { source: 'INPUT number\nOUTPUT number' } }),
   );
   await guest(page);
-  await page.getByRole('button', { name: 'Choose a problem', exact: true }).click();
+  await page.getByRole('button', { name: /^Problems/ }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: /The inclusive gate/ })
@@ -103,7 +103,7 @@ test('using a solution needs confirmation and replaces the current draft', async
     r.fulfill({ json: { source: 'INPUT number\nOUTPUT number' } }),
   );
   await guest(page);
-  await page.getByRole('button', { name: 'Choose a problem', exact: true }).click();
+  await page.getByRole('button', { name: /^Problems/ }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: /The inclusive gate/ })
@@ -137,7 +137,7 @@ test('pending checklist stays separate from the explanation of current code', as
   );
   await page.goto('/');
   await signIn(page);
-  await page.getByRole('button', { name: 'Choose a problem', exact: true }).click();
+  await page.getByRole('button', { name: /^Problems/ }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: /The inclusive gate/ })

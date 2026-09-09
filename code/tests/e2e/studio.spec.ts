@@ -37,7 +37,7 @@ test('guest opens a starter, explores hints in order, and restores the local pro
   api,
 }) => {
   await guest(page);
-  await page.getByRole('button', { name: 'Choose a problem', exact: true }).click();
+  await page.getByRole('button', { name: /^Problems/ }).click();
   const library = page.getByRole('dialog', { name: 'Choose your next challenge' });
   await library.getByRole('button', { name: /The inclusive gate/ }).click();
   await expect(library).not.toBeVisible();
@@ -121,7 +121,7 @@ test('invalid text disables execution and block edits, survives reload, and can 
 
 test('library filters by difficulty only', async ({ page }) => {
   await guest(page);
-  await page.getByRole('button', { name: 'Choose a problem' }).click();
+  await page.getByRole('button', { name: /^Problems/ }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('combobox')).toHaveCount(1);
   await expect(dialog.getByRole('textbox')).toHaveCount(0);
@@ -387,7 +387,7 @@ test('solution needs confirmation and leaves the learner draft unchanged', async
     await route.fulfill({ json: { source: 'OUTPUT "Example solution"' } });
   });
   await guest(page);
-  await page.getByRole('button', { name: 'Choose a problem', exact: true }).click();
+  await page.getByRole('button', { name: /^Problems/ }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: /The inclusive gate/ })

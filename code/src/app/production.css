@@ -1425,3 +1425,94 @@ button:disabled {
     grid-template-columns: 340px minmax(0, 1fr);
   }
 }
+
+.production-studio.sidebar-collapsed {
+  grid-template-columns: 32px minmax(0, 1fr);
+}
+.production-studio.sidebar-collapsed > .lesson {
+  padding: 0;
+  min-width: 0;
+}
+.sidebar-collapsed > .lesson > * {
+  display: none;
+}
+.account-name {
+  max-width: 240px;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+.account-name-form {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.account-name-form input {
+  width: 190px;
+  max-width: 100%;
+  padding: 8px;
+  border: 1px solid #9bb092;
+  border-radius: 5px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+.account-name-form p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.editor-workbench {
+  position: relative;
+}
+.sidebar-toggle {
+  position: absolute;
+  z-index: 2;
+  left: -22px;
+  top: 18px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #51664b;
+  cursor: pointer;
+}
+.sidebar-toggle::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px solid #b6c7ae;
+  border-radius: 50%;
+  background: #f7f9f5;
+}
+.sidebar-toggle svg {
+  position: relative;
+}
+.sidebar-toggle:hover::before {
+  background: #e4ebe0;
+  border-color: #8ba180;
+}
+.sidebar-toggle:active::before {
+  background: #dce8d5;
+}
+.sidebar-toggle:focus-visible {
+  outline: 2px solid #547960;
+  outline-offset: 1px;
+}
+@media (max-width: 760px) {
+  .production-studio.sidebar-collapsed > .lesson {
+    min-height: 24px;
+  }
+  .sidebar-toggle {
+    left: calc(50% - 22px);
+    top: -22px;
+  }
+  .sidebar-toggle svg {
+    transform: rotate(90deg);
+  }
+}

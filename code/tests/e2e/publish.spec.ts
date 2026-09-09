@@ -31,6 +31,26 @@ test('publishes the current program after statement rewriting and checks', async
   });
   try {
     await page.goto('/');
+    await page.getByRole('button', { name: 'learner@example.com', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Your name' }).fill('   ');
+    await expect(page.getByRole('button', { name: 'Save name', exact: true })).toBeDisabled();
+    await page.getByRole('textbox', { name: 'Your name' }).fill('Alex Learner');
+    await page.getByRole('button', { name: 'Save name', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Alex Learner', exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Alex Learner', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Hide problem panel' }).click();
+    await expect(page.getByRole('textbox', { name: 'Program name', exact: true })).toBeHidden();
+    await page.getByRole('button', { name: 'Show problem panel' }).blur();
+    await page.screenshot({ path: '/tmp/pseudostar-collapsed-rail-desktop.png' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: '/tmp/pseudostar-collapsed-rail-mobile.png' });
+    await page.getByRole('button', { name: 'Show problem panel' }).click();
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await expect(page.getByRole('textbox', { name: 'Program name', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Choose a problem', exact: true })).toHaveCount(
+      0,
+    );
     await page.getByRole('button', { name: 'Pseudocode', exact: true }).click();
     const editor = page.getByRole('textbox', { name: 'Pseudocode editor' });
     const source = 'INPUT n\nSET result = n * 2\nOUTPUT result';
