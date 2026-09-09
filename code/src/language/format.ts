@@ -14,13 +14,32 @@ export function format(program: Program): { source: string; ranges: Map<string, 
       const lineNumber = lines.length + 1;
       switch (s.kind) {
         case 'input':
-          line(`INPUT ${s.name}`, level);
+          line(`INPUT ${s.json ? 'JSON ' : ''}${s.name}`, level);
           break;
         case 'output':
           line(`${s.keyword} ${s.values.map((v) => v.raw).join(', ')}`, level);
           break;
         case 'assign':
-          line(`${s.name} = ${s.value.raw}`, level);
+          line(`${s.set ? 'SET ' : ''}${s.name} = ${s.value.raw}`, level);
+          break;
+        case 'indexedAssign':
+          line(`${s.set ? 'SET ' : ''}${s.target.raw} = ${s.value.raw}`, level);
+          break;
+        case 'invoke':
+          line(`CALL ${s.expression.raw}`, level);
+          break;
+        case 'return':
+          line(`RETURN ${s.value.raw}`, level);
+          break;
+        case 'while':
+          line(`WHILE ${s.condition.raw}`, level);
+          emit(s.body, level + 1);
+          line('ENDWHILE', level);
+          break;
+        case 'function':
+          line(`FUNCTION ${s.name}(${s.parameters.join(', ')})`, level);
+          emit(s.body, level + 1);
+          line('END FUNCTION', level);
           break;
         case 'call':
           line(`${s.name}()`, level);

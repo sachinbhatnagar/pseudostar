@@ -1,76 +1,117 @@
 import { parse } from './parse';
-import type {
-  Diagnostic,
-  Expr,
-  MachineEvent,
-  Program,
-  RunLimits,
-  RunResult,
-  Scalar,
-  Statement,
-} from './types';
-const defaults: RunLimits = { statements: 100_000, depth: 64, outputs: 1000, outputBytes: 256_000 };
-class RuntimeIssue extends Error {
-  constructor(
-    public code: string,
-    message: string,
-    public nextAction: string,
-  ) {
-    super(message);
-  }
-}
-const issue = (
-  code: string,
-  message: string,
-  nextAction = 'Check the values used in this instruction.',
-): never => {
-  throw new RuntimeIssue(code, message, nextAction);
+import type { Expr, MachineEvent, Program, RunLimits, RunResult, Value, Statement } from './types';
+import {
+  RuntimeIssue,
+  issue,
+  number,
+  bool,
+  display,
+  index,
+  copy,
+  validateValue,
+  builtin,
+  isBuiltin,
+  valueCost,
+} from './collections';
+const defaults: RunLimits = {
+  statements: 100_000,
+  depth: 64,
+  outputs: 1000,
+  outputBytes: 256_000,
+  work: 20_000_000,
 };
-const number = (value: Scalar): number =>
-  typeof value === 'number'
-    ? value
-    : issue(
-        'EXPECTED_NUMBER',
-        `This calculation needs a number, but received ${JSON.stringify(value)}.`,
-      );
-const bool = (value: Scalar): boolean =>
-  typeof value === 'boolean'
-    ? value
-    : issue('EXPECTED_CONDITION', 'This condition must compare values to give true or false.');
-const display = (v: Scalar): string =>
-  typeof v === 'boolean' ? (v ? 'TRUE' : 'FALSE') : String(v);
+type Events<T = void> = Generator<MachineEvent, T, string | undefined>;
+class Returned {
+  constructor(public value: Value) {}
+}
 export function createMachine(program: Program, custom: Partial<RunLimits> = {}) {
   const limits = { ...defaults, ...custom };
-  const variables: Record<string, Scalar> = Object.create(null);
-  const routines = new Map<string, Statement & { kind: 'sub' }>();
-  const activeCounters = new Set<string>();
+  let variables: Record<string, Value> = Object.create(null);
+  let activeCounters = new Set<string>();
+  const routines = new Map<string, Statement & { kind: 'sub' | 'function' }>();
   let current: Statement | undefined;
-  let steps = 0;
-  let outputs = 0;
-  let bytes = 0;
-  const snapshot = () => ({ ...variables });
-  const evaluate = (expr: Expr): Scalar => {
+  let steps = 0,
+    outputs = 0,
+    bytes = 0,
+    work = 0;
+  const charge = (cost = 1) => {
+    if ((work += cost) > limits.work!)
+      issue('WORK_LIMIT', 'The program is doing too much work on collections. Use smaller inputs.');
+  };
+  const snapshot = () => {
+    charge(valueCost(Object.values(variables), 1000000));
+    return structuredClone({ ...variables });
+  };
+  const tick = () => {
+    if (++steps > limits.statements)
+      issue('STEP_LIMIT', 'The program reached its instruction limit. Check its loops and calls.');
+  };
+  function* evaluate(expr: Expr, depth: number): Events<Value> {
+    charge();
     switch (expr.kind) {
       case 'literal':
         return expr.value;
       case 'name':
         return Object.hasOwn(variables, expr.name)
           ? variables[expr.name]
-          : issue(
-              'UNASSIGNED_VARIABLE',
-              `${expr.name} has no value yet.`,
-              'Give it a value with INPUT or an assignment before this line.',
-            );
+          : issue('UNASSIGNED_VARIABLE', `${expr.name} has no value yet.`);
+      case 'list': {
+        const items: Value[] = [];
+        for (const e of expr.items) items.push(copy(yield* evaluate(e, depth)));
+        validateValue(items);
+        return items;
+      }
+      case 'index': {
+        const target = yield* evaluate(expr.target, depth),
+          key = yield* evaluate(expr.index, depth);
+        const i = index(target, key);
+        return (target as Value[] | string)[i];
+      }
+      case 'invoke': {
+        const args: Value[] = [];
+        for (const a of expr.args) args.push(yield* evaluate(a, depth));
+        if (isBuiltin(expr.name)) {
+          charge(valueCost(args, 1000000));
+          const result = builtin(expr.name, args);
+          charge(valueCost(result));
+          return result;
+        }
+        const fn = routines.get(expr.name);
+        if (!fn || fn.kind !== 'function')
+          issue('UNKNOWN_ROUTINE', `${expr.name} is not a defined function.`);
+        const f = fn as Statement & { kind: 'function' };
+        if (args.length !== f.parameters.length)
+          issue('ARGUMENT_COUNT', `Supply ${f.parameters.length} inputs to ${f.name}.`);
+        if (depth >= limits.depth)
+          issue('CALL_LIMIT', 'Too many calls are waiting. Check the stopping condition.');
+        const saved = variables,
+          counters = activeCounters;
+        variables = Object.create(null);
+        activeCounters = new Set();
+        f.parameters.forEach((p, i) => {
+          variables[p] = copy(args[i]);
+        });
+        try {
+          yield* execute(f.body, depth + 1, true);
+        } catch (e) {
+          if (e instanceof Returned) return copy(e.value);
+          throw e;
+        } finally {
+          variables = saved;
+          activeCounters = counters;
+        }
+        return issue('MISSING_RETURN', `${f.name} must RETURN a value on this path.`);
+      }
       case 'unary': {
-        const v = evaluate(expr.value);
+        const v = yield* evaluate(expr.value, depth);
         return expr.op === 'NOT' ? !bool(v) : expr.op === '-' ? -number(v) : number(v);
       }
       case 'binary': {
-        const a = evaluate(expr.left);
-        if (expr.op === 'AND') return bool(a) && bool(evaluate(expr.right));
-        if (expr.op === 'OR') return bool(a) || bool(evaluate(expr.right));
-        const b = evaluate(expr.right);
-        let result: Scalar;
+        const a = yield* evaluate(expr.left, depth);
+        if (expr.op === 'AND') return bool(a) && bool(yield* evaluate(expr.right, depth));
+        if (expr.op === 'OR') return bool(a) || bool(yield* evaluate(expr.right, depth));
+        const b = yield* evaluate(expr.right, depth);
+        let result: Value;
         switch (expr.op) {
           case '=':
           case '==':
@@ -79,8 +120,6 @@ export function createMachine(program: Program, custom: Partial<RunLimits> = {})
           case '!=':
             return a !== b;
           case '&':
-            if (display(a).length + display(b).length > 200_000)
-              issue('VALUE_LIMIT', 'This text value is too long.');
             result = display(a) + display(b);
             break;
           case '+':
@@ -97,60 +136,40 @@ export function createMachine(program: Program, custom: Partial<RunLimits> = {})
             break;
           case '/':
           case 'MOD':
-            if (number(b) === 0)
-              issue(
-                'DIVISION_BY_ZERO',
-                'This calculation divides by zero.',
-                'Check the divisor before dividing.',
-              );
+            if (number(b) === 0) issue('DIVISION_BY_ZERO', 'This calculation divides by zero.');
             result = expr.op === '/' ? number(a) / number(b) : number(a) % number(b);
             break;
-          default: {
-            if (typeof a !== typeof b || typeof a === 'boolean' || typeof b === 'boolean')
+          default:
+            if (
+              (typeof a !== 'number' && typeof a !== 'string') ||
+              (typeof b !== 'number' && typeof b !== 'string') ||
+              typeof a !== typeof b
+            )
               return issue('INCOMPATIBLE_COMPARISON', 'Compare two numbers or two text values.');
             if (expr.op === '<') return a < b;
             if (expr.op === '<=') return a <= b;
             if (expr.op === '>') return a > b;
             if (expr.op === '>=') return a >= b;
             return issue('UNKNOWN_OPERATOR', `The operator ${expr.op} is not supported.`);
-          }
         }
-        if (typeof result === 'number' && !Number.isFinite(result))
-          issue('NUMBER_LIMIT', 'This calculation makes a number that is too large.');
-        if (typeof result === 'string' && result.length > 200_000)
-          issue('VALUE_LIMIT', 'This text value is too long.');
+        validateValue(result);
         return result;
       }
     }
-  };
-  const assign = (name: string, value: Scalar) => {
+  }
+  const assign = (name: string, value: Value) => {
     if (activeCounters.has(name))
-      issue(
-        'LOOP_COUNTER_WRITE',
-        `${name} is counting an active loop.`,
-        'Use a different variable inside this loop.',
-      );
-    variables[name] = value;
+      issue('LOOP_COUNTER_WRITE', `${name} is counting an active loop.`);
+    variables[name] = copy(value);
+    if (Object.keys(variables).length > 1000)
+      issue('VALUE_LIMIT', 'This program has too many variables.');
   };
-  function* execute(
-    items: Statement[],
-    depth: number,
-  ): Generator<MachineEvent, void, string | undefined> {
-    if (depth > limits.depth)
-      issue(
-        'CALL_LIMIT',
-        'Too many sub-routine calls are waiting.',
-        'Check whether a sub-routine calls itself without a stopping condition.',
-      );
+  function* execute(items: Statement[], depth: number, inFunction = false): Events {
+    if (depth > limits.depth) issue('CALL_LIMIT', 'Too many sub-routine calls are waiting.');
     for (const s of items) {
-      if (s.kind === 'sub') continue;
+      if (s.kind === 'sub' || s.kind === 'function') continue;
       current = s;
-      if (++steps > limits.statements)
-        issue(
-          'STEP_LIMIT',
-          'The program reached its instruction limit.',
-          'Check the loop bounds or sub-routine calls.',
-        );
+      tick();
       yield { type: 'step', nodeId: s.id, line: s.range.line, variables: snapshot() };
       switch (s.kind) {
         case 'input': {
@@ -161,44 +180,73 @@ export function createMachine(program: Program, custom: Partial<RunLimits> = {})
             line: s.range.line,
             variables: snapshot(),
           };
-          if (raw === undefined)
-            issue(
-              'MISSING_INPUT',
-              `${s.name} needs an input value.`,
-              'Enter a value and submit it.',
-            );
+          if (raw === undefined) issue('MISSING_INPUT', `${s.name} needs an input value.`);
           const input = raw!;
           if (input.length > 10000) issue('INPUT_LIMIT', 'This input is too long.');
-          const numeric = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(input.trim());
-          const value = numeric ? Number(input) : input;
-          if (typeof value === 'number' && !Number.isFinite(value))
-            issue('NUMBER_LIMIT', 'This input number is too large.');
+          let value: unknown = input;
+          if (s.json) {
+            try {
+              value = JSON.parse(input);
+            } catch {
+              issue('INVALID_VALUE', 'Enter JSON, such as [2, 4, 6].');
+            }
+          } else if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(input.trim())) value = Number(input);
+          validateValue(value);
           assign(s.name, value);
           break;
         }
         case 'assign':
-          assign(s.name, evaluate(s.value));
+          assign(s.name, yield* evaluate(s.value, depth));
           break;
+        case 'indexedAssign': {
+          if (s.target.kind !== 'index') issue('INVALID_INDEX', 'Choose a list item.');
+          const t = s.target as Expr & { kind: 'index' };
+          const target = yield* evaluate(t.target, depth),
+            key = yield* evaluate(t.index, depth);
+          if (!Array.isArray(target)) issue('EXPECTED_LIST', 'Only list items can be changed.');
+          const i = index(target, key),
+            value = copy(yield* evaluate(s.value, depth));
+          (target as Value[])[i] = value;
+          validateValue(target);
+          break;
+        }
+        case 'invoke':
+          yield* evaluate(s.expression, depth);
+          break;
+        case 'return':
+          if (!inFunction) issue('RETURN_OUTSIDE_FUNCTION', 'Use RETURN inside a function.');
+          throw new Returned(yield* evaluate(s.value, depth));
         case 'output': {
-          const text = s.values.map((e) => display(evaluate(e))).join('');
+          const parts: string[] = [];
+          for (const e of s.values) parts.push(display(yield* evaluate(e, depth)));
+          const text = parts.join('');
           bytes += new TextEncoder().encode(text).length;
           if (++outputs > limits.outputs || bytes > limits.outputBytes)
-            issue(
-              'OUTPUT_LIMIT',
-              'The program has produced too much output.',
-              'Check whether a loop prints more times than you intended.',
-            );
+            issue('OUTPUT_LIMIT', 'The program has produced too much output.');
           yield { type: 'output', text, nodeId: s.id, line: s.range.line, variables: snapshot() };
           break;
         }
         case 'if': {
-          const branch = s.branches.find((b) => bool(evaluate(b.condition)));
-          yield* execute(branch?.body ?? s.otherwise ?? [], depth);
+          let chosen = s.otherwise ?? [];
+          for (const branch of s.branches)
+            if (bool(yield* evaluate(branch.condition, depth))) {
+              chosen = branch.body;
+              break;
+            }
+          yield* execute(chosen, depth, inFunction);
           break;
         }
+        case 'while':
+          while (bool(yield* evaluate(s.condition, depth))) {
+            current = s;
+            tick();
+            yield { type: 'step', nodeId: s.id, line: s.range.line, variables: snapshot() };
+            yield* execute(s.body, depth, inFunction);
+          }
+          break;
         case 'for': {
-          const start = number(evaluate(s.start)),
-            end = number(evaluate(s.end));
+          const start = number(yield* evaluate(s.start, depth)),
+            end = number(yield* evaluate(s.end, depth));
           if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end))
             issue('LOOP_INTEGER', 'Loop bounds must be safe whole numbers.');
           if (activeCounters.has(s.name))
@@ -207,15 +255,10 @@ export function createMachine(program: Program, custom: Partial<RunLimits> = {})
           try {
             for (let i = start; s.style === 'range' ? i < end : i <= end; i++) {
               current = s;
-              if (++steps > limits.statements)
-                issue(
-                  'STEP_LIMIT',
-                  'The loop reached its instruction limit.',
-                  'Use a smaller loop bound.',
-                );
+              tick();
               variables[s.name] = i;
               yield { type: 'step', nodeId: s.id, line: s.range.line, variables: snapshot() };
-              yield* execute(s.body, depth);
+              yield* execute(s.body, depth, inFunction);
             }
           } finally {
             activeCounters.delete(s.name);
@@ -223,35 +266,36 @@ export function createMachine(program: Program, custom: Partial<RunLimits> = {})
           break;
         }
         case 'call': {
+          if (isBuiltin(s.name)) {
+            yield* evaluate({ kind: 'invoke', name: s.name, args: [], raw: `${s.name}()` }, depth);
+            break;
+          }
           const routine = routines.get(s.name);
-          if (!routine)
-            issue(
-              'UNKNOWN_ROUTINE',
-              `${s.name} has not been defined.`,
-              'Add its SUB-ROUTINE definition or check its spelling.',
-            );
-          yield* execute(routine!.body, depth + 1);
+          if (!routine) issue('UNKNOWN_ROUTINE', `${s.name} has not been defined.`);
+          if (routine!.kind === 'function')
+            yield* evaluate({ kind: 'invoke', name: s.name, args: [], raw: `${s.name}()` }, depth);
+          else yield* execute(routine!.body, depth + 1, inFunction);
           break;
         }
       }
     }
   }
-  function* start(): Generator<MachineEvent, void, string | undefined> {
+  function* start(): Events {
     try {
       for (const s of program.statements)
-        if (s.kind === 'sub') {
+        if (s.kind === 'sub' || s.kind === 'function') {
           current = s;
-          if (routines.has(s.name))
-            issue('DUPLICATE_ROUTINE', `${s.name} is defined more than once.`);
+          if (routines.has(s.name) || isBuiltin(s.name))
+            issue('DUPLICATE_ROUTINE', `${s.name} is already defined.`);
           routines.set(s.name, s);
         }
       const nested = (items: Statement[], inside = false) => {
         for (const s of items) {
-          if (inside && s.kind === 'sub') {
+          if (inside && (s.kind === 'sub' || s.kind === 'function')) {
             current = s;
-            issue('NESTED_ROUTINE', 'Put sub-routine definitions outside other instructions.');
+            issue('NESTED_ROUTINE', 'Put definitions outside other instructions.');
           }
-          if (s.kind === 'sub' || s.kind === 'for') nested(s.body, true);
+          if ('body' in s) nested(s.body, true);
           if (s.kind === 'if') {
             s.branches.forEach((b) => nested(b.body, true));
             nested(s.otherwise ?? [], true);
@@ -265,16 +309,12 @@ export function createMachine(program: Program, custom: Partial<RunLimits> = {})
       const e =
         error instanceof RuntimeIssue
           ? error
-          : new RuntimeIssue(
-              'EXECUTION_ERROR',
-              'The program could not continue.',
-              'Check the highlighted instruction.',
-            );
+          : new RuntimeIssue('EXECUTION_ERROR', 'The program could not continue.');
       yield {
         type: 'error',
         nodeId: current?.id,
         line: current?.range.line,
-        variables: snapshot(),
+        variables: structuredClone({ ...variables }),
         diagnostic: {
           code: e.code,
           message: e.message,
@@ -297,27 +337,25 @@ export function createMachine(program: Program, custom: Partial<RunLimits> = {})
 export function run(source: string, inputs: string[], limits?: Partial<RunLimits>): RunResult {
   const parsed = parse(source);
   if (!parsed.ok) return { output: [], variables: {}, error: parsed.diagnostics[0], steps: 0 };
-  const machine = createMachine(parsed.program, limits);
-  const output: string[] = [];
-  let index = 0;
-  let event = machine.advance();
+  const machine = createMachine(parsed.program, limits),
+    output: string[] = [];
+  let at = 0,
+    event = machine.advance();
   while (true) {
     if (event.type === 'output') output.push(event.text!);
     if (event.type === 'done' || event.type === 'error')
       return { output, variables: event.variables, error: event.diagnostic, steps: machine.steps };
-    if (event.type === 'input') {
-      if (index >= inputs.length)
-        return {
-          output,
-          variables: event.variables,
-          error: {
-            code: 'MISSING_INPUT',
-            message: `${event.name} needs another input.`,
-            nextAction: 'Supply enough inputs for every INPUT instruction.',
-          },
-          steps: machine.steps,
-        };
-      event = machine.advance(inputs[index++]);
-    } else event = machine.advance();
+    if (event.type === 'input' && at >= inputs.length)
+      return {
+        output,
+        variables: event.variables,
+        steps: machine.steps,
+        error: {
+          code: 'MISSING_INPUT',
+          message: `${event.name} needs another input.`,
+          nextAction: 'Supply enough inputs for every INPUT instruction.',
+        },
+      };
+    event = machine.advance(event.type === 'input' ? inputs[at++] : undefined);
   }
 }

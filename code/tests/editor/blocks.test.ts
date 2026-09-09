@@ -31,6 +31,17 @@ const visibleRow = (block: Blockly.Block, name: string) =>
     .join(' ');
 
 describe('block round trips', () => {
+  it('preserves SET and function-result blocks through execution and formatting', () => {
+    const source =
+      'SET items = [[1,2], [3]]\nSET count = LENGTH(items)\nSET items[2][1] = MAX(count, LENGTH(items[1]))\nOUTPUT items';
+    withWorkspace(source, (workspace) => {
+      expect(
+        workspace.getAllBlocks(false).filter((b) => b.type === 'ps_function_value'),
+      ).toHaveLength(2);
+      expect(sourceFor(workspace).trim()).toBe(source);
+      expect(run(sourceFor(workspace), []).output).toEqual(['[[1,2],[2]]']);
+    });
+  });
   for (const file of readdirSync('../references').filter((name) => name.endsWith('.md'))) {
     it(`preserves ${file}`, () => {
       const source = readFileSync(`../references/${file}`, 'utf8')
@@ -160,5 +171,15 @@ describe('block round trips', () => {
     } finally {
       workspace.dispose();
     }
+  });
+});
+
+it('round trips advanced functions, collections, and loop bodies', () => {
+  const source =
+    'FUNCTION sum(items)\n    total = 0\n    i = 1\n    WHILE i <= LENGTH(items)\n        total = total + items[i]\n        i = i + 1\n    ENDWHILE\n    RETURN total\nEND FUNCTION\na = [1, 2]\na[2] = 4\nCALL APPEND(a, 3)\nOUTPUT sum(a)';
+  withWorkspace(source, (ws) => {
+    expect(run(sourceFor(ws), []).output).toEqual(['8']);
+    expect(ws.getAllBlocks(false).some((b) => b.type === 'ps_function')).toBe(true);
+    expect(ws.getAllBlocks(false).some((b) => b.type === 'ps_while')).toBe(true);
   });
 });

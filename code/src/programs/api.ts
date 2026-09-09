@@ -39,10 +39,11 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   }
   return data as T;
 }
-export type User = { id: string; email: string };
+export type User = { id: string; email: string; admin?: boolean };
 export type SavedProgram = {
   id: string;
   title: string;
+  description?: string;
   problemId: string | null;
   draft: string;
   lastValidSource?: string | null;

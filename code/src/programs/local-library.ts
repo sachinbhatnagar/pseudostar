@@ -11,6 +11,7 @@ type Library = { version: 1; programs: GuestProgram[] };
 type GuestDraft = {
   localId: string;
   title: string;
+  description?: string;
   draft: string;
   problemId: string | null;
   lastValidSource?: string | null;
@@ -30,6 +31,7 @@ function valid(value: unknown): value is GuestProgram {
     typeof p.id === 'string' &&
     p.id.length > 0 &&
     typeof p.title === 'string' &&
+    (p.description === undefined || typeof p.description === 'string') &&
     typeof p.draft === 'string' &&
     (p.problemId === null || typeof p.problemId === 'string') &&
     (p.lastValidSource == null || typeof p.lastValidSource === 'string') &&
@@ -159,6 +161,7 @@ export function saveGuestProgram(
   checkName(library, draft.title, draft.localId);
   const content = {
     title: draft.title.trim(),
+    description: draft.description ?? '',
     draft: draft.draft,
     problemId: draft.problemId,
     lastValidSource: draft.lastValidSource ?? null,
@@ -168,6 +171,7 @@ export function saveGuestProgram(
       throw new Error('This guest program was deleted. Restore it or save a new copy.');
     const unchanged =
       previous.title === content.title &&
+      (previous.description ?? '') === content.description &&
       previous.draft === content.draft &&
       previous.problemId === content.problemId &&
       (previous.lastValidSource ?? null) === content.lastValidSource;

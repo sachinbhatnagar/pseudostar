@@ -59,7 +59,7 @@ export function tokenize(source: string): Token[] {
       });
       continue;
     }
-    const op = source.slice(i).match(/^(?:==|>=|<=|<>|!=|[+\-*/&=<>(),])/);
+    const op = source.slice(i).match(/^(?:==|>=|<=|<>|!=|[+\-*/&=<>(),\[\]])/);
     if (!op)
       throw new SyntaxIssue(`The symbol ${source[i]} is not part of this pseudocode language.`);
     i += op[0].length;
@@ -89,7 +89,9 @@ export function parseExpressions(source: string, list = false): Expr[] {
   const tokens = tokenize(source);
   let at = 0;
   const current = () => tokens[at];
+  let depth = 0;
   const parse = (min: number): Expr => {
+    if (++depth > 64) throw new SyntaxIssue('This expression is nested too deeply.');
     const start = current().start;
     const t = tokens[at++];
     let left: Expr;
@@ -106,13 +108,48 @@ export function parseExpressions(source: string, list = false): Expr[] {
           : { kind: 'name', name: t.value, raw: t.value };
     else if (t.value === '+' || t.value === '-' || t.value === 'NOT')
       left = { kind: 'unary', op: t.value, value: parse(7), raw: '' };
-    else if (t.value === '(') {
+    else if (t.value === '[') {
+      const items: Expr[] = [];
+      if (current().value !== ']') {
+        items.push(parse(1));
+        while (current().value === ',') {
+          at++;
+          items.push(parse(1));
+        }
+      }
+      if (current().value !== ']') throw new SyntaxIssue('This list needs a closing bracket.');
+      at++;
+      left = { kind: 'list', items, raw: '' };
+    } else if (t.value === '(') {
       left = parse(1);
       if (current().type !== 'op' || current().value !== ')')
         throw new SyntaxIssue('This expression needs a closing parenthesis.');
       at++;
     } else
       throw new SyntaxIssue('An expression is missing. Enter a value, variable, or calculation.');
+    while (current().value === '[' || current().value === '(') {
+      const open = tokens[at++].value;
+      if (open === '[') {
+        const index = parse(1);
+        if (current().value !== ']') throw new SyntaxIssue('This index needs a closing bracket.');
+        at++;
+        left = { kind: 'index', target: left, index, raw: '' };
+      } else {
+        if (left.kind !== 'name') throw new SyntaxIssue('Call a function by its name.');
+        const args: Expr[] = [];
+        if (current().value !== ')') {
+          args.push(parse(1));
+          while (current().value === ',') {
+            at++;
+            args.push(parse(1));
+          }
+        }
+        if (current().value !== ')')
+          throw new SyntaxIssue('This call needs a closing parenthesis.');
+        at++;
+        left = { kind: 'invoke', name: left.name, args, raw: '' };
+      }
+    }
     while (current().type === 'op' && (precedence[current().value] ?? 0) >= min) {
       const op = tokens[at++].value;
       if (precedence[op] === 3 && left.kind === 'binary' && precedence[left.op] === 3)
@@ -121,6 +158,7 @@ export function parseExpressions(source: string, list = false): Expr[] {
       left = { kind: 'binary', op, left, right, raw: '' };
     }
     left.raw = source.slice(start, tokens[at - 1].end);
+    depth--;
     return left;
   };
   const result = [parse(1)];

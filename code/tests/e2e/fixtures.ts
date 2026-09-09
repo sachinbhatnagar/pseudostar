@@ -86,6 +86,7 @@ export class TestApi {
         return this.error(route, 403, 'The account changed. Reload the page.');
       }
     }
+    if (path === '/problems' && method === 'GET') return route.fulfill({ json: { problems: [] } });
     if (path === '/session' && method === 'GET')
       return route.fulfill({ json: { user: this.user } });
     if (path.startsWith('/auth/')) {

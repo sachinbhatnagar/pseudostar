@@ -12,7 +12,7 @@ import {
 describe('text language', () => {
   it('highlights real tokens and keeps quoted syntax together', () => {
     const source =
-      'SUB-ROUTINE show()\nIF count >= 2 AND TRUE THEN\nPRINT "IF + 99", .5\nENDIF\nEND SUB';
+      'SET count = LENGTH([1, 2])\nSUB-ROUTINE show()\nIF count >= 2 AND TRUE THEN\nPRINT "IF + 99", .5\nENDIF\nEND SUB';
     const tokens: { text: string; classes: string }[] = [];
     highlightTree(
       pseudocodeLanguage.parser.parse(source),
@@ -20,6 +20,8 @@ describe('text language', () => {
       (from, to, classes) => tokens.push({ text: source.slice(from, to), classes }),
     );
     for (const text of [
+      'SET',
+      'LENGTH',
       'SUB-ROUTINE',
       'IF',
       'count',
@@ -32,7 +34,7 @@ describe('text language', () => {
       '.5',
       'ENDIF',
     ]) {
-      expect(tokens.find((token) => token.text === text)?.classes).toBeTruthy();
+      expect(tokens.find((token) => token.text === text)?.classes, text).toBeTruthy();
     }
     expect(tokens.find((token) => token.text === 'IF')?.classes).not.toBe(
       tokens.find((token) => token.text === '"IF + 99"')?.classes,

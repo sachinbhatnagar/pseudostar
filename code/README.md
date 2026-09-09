@@ -96,3 +96,48 @@ node scripts/preflight.mjs
 Both commands are offline. The first checks config and source assets; the second also checks build files. Neither validates remote resources or secrets. After setup, `node scripts/deploy.mjs` checks config, builds, checks assets, shows Cloudflare identity and deploys. Remote migrations remain a separate operation.
 
 Use `npm run fonts:setup`, `npm run deploy:preflight`, `npm run test:preflight`, and `npm run deploy` for these workflows. Build and postinstall do not change remote databases or secrets.
+
+## Community problems
+
+For a blank program, enter its title and detailed problem statement in **Your problem**.
+Both fields save with the program. On mobile, use **Add or edit problem details**.
+Create a program, sign in, then select **Publish** beside **Save**.
+The saved statement is filled in for you.
+Enter the problem statement, including its input, output, and limits. Select
+**Check and publish**. AI rewrites the statement in ASD-STE100 style for Grade 8
+and above, creates a title, and assigns Easy, Medium, or Hard difficulty.
+Your pseudocode stays unchanged.
+
+The server generates test cases from the statement and checks the program,
+its block conversion, and a separate reference solution. Only programs that
+pass all checks enter the shared library. Failed checks appear in the form.
+There are 10 publication attempts per account per 24-hour rate window.
+Repeating a successful submission returns the existing problem.
+
+Open **Problems** to see shared problems beside the built-in problems.
+Authors can select **Edit or delete** below their problem in the library.
+Edits must pass the publication checks again. Delete requires confirmation.
+Other users cannot edit or delete the problem.
+Filter by difficulty. Language guidance is available in **Help**.
+
+Use `SET count = LENGTH(items)` to store a function result, or `OUTPUT LENGTH(items)`
+to show it. The **SET** block accepts a value or calculation. The **Function result**
+block has fields for the result variable, function name, and inputs. Functions also
+work in conditions, loop bounds, indexed assignments, and other function calls.
+`SET count TO 3` formats as `SET count = 3`. Existing `count = 3` programs still work.
+`SET seen = SET()` stores a new set; the statement keyword and collection function
+have different roles. `CALL` discards a function result. Use it for collection changes.
+The parser, runner, block conversion, lesson checks, and publication checks use the same
+language implementation. These extensions follow PseudoStar's textbook conventions;
+they do not claim conformance to every pseudocode dialect.
+Function inputs are copied and function variables are local. Existing subroutines
+continue to share their caller's variables.
+
+The local database needs migration `0003_shared_problems.sql`; run `npm run db:local`.
+Use `npm run dev` and `npm run dev:api` for local testing. Sign in with the normal email code.
+
+Tests cover text/block conversion, bounded execution, original examples,
+additional cases, and comparison against a separately generated reference.
+Agreement is supporting evidence, not a correctness guarantee. Problems that fail
+checks are not published. Linked nodes, custom records, heaps, and related problem
+families remain [future scope](../docs/leetcode-import-scope.md).

@@ -7,6 +7,9 @@ test('guests can read credits but cannot request AI explanations', async ({ page
   ).toBeDisabled();
   await page.getByRole('button', { name: '© 2026 Studio 8 Collective', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Studio 8 Collective' })).toContainText(
+    'PseudoStar 0.3',
+  );
+  await expect(page.getByRole('dialog', { name: 'Studio 8 Collective' })).toContainText(
     'Built by Sachin Bhatnagar for Studio 8 Collective',
   );
 });

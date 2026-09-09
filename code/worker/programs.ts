@@ -1,7 +1,7 @@
 import type { Env } from './env';
 import { ApiError, body, fail, integer, programInput } from './validation';
 const fields =
-  'id,title,problem_id AS problemId,draft,last_valid_source AS lastValidSource,workspace,format_version AS formatVersion,revision,updated_at AS updatedAt,deleted_at AS deletedAt';
+  'id,title,description,problem_id AS problemId,draft,last_valid_source AS lastValidSource,workspace,format_version AS formatVersion,revision,updated_at AS updatedAt,deleted_at AS deletedAt';
 const retention = 30 * 24 * 60 * 60 * 1000;
 async function get(env: Env, owner: string, id: string, deleted = false) {
   const row = await env.DB.prepare(
@@ -48,12 +48,13 @@ export async function programs(
     const p = programInput(await body(request));
     const newId = crypto.randomUUID();
     const row = await env.DB.prepare(
-      `INSERT INTO programs(id,owner_id,title,problem_id,draft,last_valid_source,workspace,updated_at) VALUES(?,?,?,?,?,?,?,?) RETURNING ${fields}`,
+      `INSERT INTO programs(id,owner_id,title,description,problem_id,draft,last_valid_source,workspace,updated_at) VALUES(?,?,?,?,?,?,?,?,?) RETURNING ${fields}`,
     )
       .bind(
         newId,
         owner,
         p.title,
+        p.description ?? '',
         p.problemId ?? null,
         p.draft,
         p.lastValidSource ?? null,
@@ -76,10 +77,11 @@ export async function programs(
     );
     const current = await get(env, owner, id);
     const row = await env.DB.prepare(
-      `UPDATE programs SET title=?,draft=?,problem_id=?,last_valid_source=?,workspace=?,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND deleted_at IS NULL AND revision=? AND format_version=1 RETURNING ${fields}`,
+      `UPDATE programs SET title=?,description=?,draft=?,problem_id=?,last_valid_source=?,workspace=?,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND deleted_at IS NULL AND revision=? AND format_version=1 RETURNING ${fields}`,
     )
       .bind(
         p.title,
+        p.description === undefined ? current.description : p.description,
         p.draft,
         p.problemId === undefined ? current.problemId : p.problemId,
         p.lastValidSource === undefined ? current.lastValidSource : p.lastValidSource,

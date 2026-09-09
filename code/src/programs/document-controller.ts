@@ -6,6 +6,7 @@ export type Document = {
   localId: string;
   id?: string;
   title: string;
+  description?: string;
   draft: string;
   lastValidSource?: string;
   problemId: string | null;
@@ -20,7 +21,14 @@ type Dependencies = {
 };
 const storageMessage = 'Device storage is unavailable. Download your work before leaving.';
 const signature = (doc: Document) =>
-  JSON.stringify([doc.localId, doc.title, doc.draft, doc.problemId, doc.lastValidSource]);
+  JSON.stringify([
+    doc.localId,
+    doc.title,
+    doc.description,
+    doc.draft,
+    doc.problemId,
+    doc.lastValidSource,
+  ]);
 function isDocument(value: unknown): value is Document {
   if (!value || typeof value !== 'object') return false;
   const d = value as Document;
@@ -28,6 +36,7 @@ function isDocument(value: unknown): value is Document {
     typeof d.localId === 'string' &&
     d.localId.length > 0 &&
     typeof d.title === 'string' &&
+    (d.description === undefined || typeof d.description === 'string') &&
     (d.named === undefined || typeof d.named === 'boolean') &&
     typeof d.draft === 'string' &&
     (d.lastValidSource === undefined || typeof d.lastValidSource === 'string') &&
@@ -174,6 +183,7 @@ export function createDocumentController(
             method: current.id ? 'PUT' : 'POST',
             body: JSON.stringify({
               title: current.title.trim(),
+              description: current.description ?? '',
               draft: current.draft,
               problemId: current.problemId,
               lastValidSource: current.lastValidSource,
@@ -287,6 +297,7 @@ export function createDocumentController(
           localId: owner ? deps.uuid() : program.id,
           id: program.id,
           title: program.title,
+          description: program.description ?? '',
           named: true,
           draft: program.draft,
           lastValidSource: program.lastValidSource ?? undefined,

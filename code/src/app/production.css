@@ -121,6 +121,8 @@
 }
 .document-actions {
   display: flex;
+  margin-left: auto;
+  justify-content: flex-end;
   gap: 4px;
   flex-wrap: wrap;
 }
@@ -521,9 +523,17 @@
   font-size: 12px;
 }
 .library-filters {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 200px);
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
+}
+.library-filters label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
 }
 .library-filters input,
 .library-filters select {
@@ -534,9 +544,22 @@
   font: inherit;
   color: inherit;
   min-width: 0;
+  width: 100%;
+  min-height: 44px;
 }
-.library-filters input {
-  flex: 1;
+.language-guide {
+  margin-top: 24px;
+}
+.language-guide summary {
+  cursor: pointer;
+  padding-block: 12px;
+  font-weight: 600;
+}
+.language-guide pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  margin-top: 12px;
 }
 .problem-list {
   display: flex;
@@ -918,10 +941,8 @@ button:disabled {
     display: none;
   }
   .library-filters {
-    gap: 8px;
-  }
-  .library-filters input {
-    width: 60%;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
   }
   .signin-layout {
     display: flex;
@@ -1310,4 +1331,97 @@ button:disabled {
 .explanation-next p {
   margin: 0;
   font-size: 13px;
+}
+
+.library-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  background: #eaf0e5;
+  border-radius: 7px;
+}
+.library-author-action {
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-right: 12px;
+  padding: 8px;
+  min-height: 44px;
+  background: transparent;
+  color: #305435;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.library-author-action:hover {
+  background: #dce8d5;
+}
+.library-entry .problem-row {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+}
+.library-entry .problem-row:hover {
+  background: #dce8d5;
+}
+.library-entry .problem-row > span:nth-child(2) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.problem-brief {
+  display: grid;
+  gap: 20px;
+}
+.problem-brief h1 {
+  margin-bottom: 0;
+}
+.problem-brief label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.problem-brief input,
+.problem-brief textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
+}
+.problem-brief input {
+  font-size: 18px;
+  font-weight: 600;
+}
+.problem-brief input:hover,
+.problem-brief textarea:hover {
+  background: #edf2e8;
+}
+.problem-brief input:focus,
+.problem-brief textarea:focus {
+  background: #fff;
+  border-color: #9bb092;
+}
+.problem-brief textarea {
+  resize: vertical;
+  field-sizing: content;
+  min-height: 100px;
+  max-height: 480px;
+  line-height: 1.6;
+}
+.problem-brief p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #52614f;
+  margin: 0;
+}
+
+@media (min-width: 1151px) {
+  .production-studio.own-problem {
+    grid-template-columns: 340px minmax(0, 1fr);
+  }
 }
