@@ -58,7 +58,7 @@ export function format(program: Program): { source: string; ranges: Map<string, 
             level,
           );
           emit(s.body, level + 1);
-          if (s.style === 'next') line(`NEXT ${s.name}`, level);
+          if (s.style === 'next') line(`NEXT ${s.name}${s.step ? ` + ${s.step.raw}` : ''}`, level);
           break;
         case 'if':
           s.branches.forEach((b, i) => {

@@ -1613,8 +1613,9 @@ function Studio({
             OUTPUT and PRINT both display results. Use SET name = value to store a value. Use
             COMPUTE name AS expression to calculate and store a result. Existing name = value
             instructions still work. Use = or == for equality in conditions. TO includes its end
-            value; RANGE stops before it. Indent nested instructions with four spaces. Sub-routines
-            share variables with the main program.
+            value; RANGE stops before it. Use NEXT counter + 2 to increase a loop counter by two.
+            Indent nested instructions with four spaces. Sub-routines share variables with the main
+            program.
           </p>
           <h3>Learn from a failed check</h3>
           <p>

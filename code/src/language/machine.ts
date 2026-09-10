@@ -246,14 +246,17 @@ export function createMachine(program: Program, custom: Partial<RunLimits> = {})
           break;
         case 'for': {
           const start = number(yield* evaluate(s.start, depth)),
-            end = number(yield* evaluate(s.end, depth));
+            end = number(yield* evaluate(s.end, depth)),
+            step = s.step ? number(yield* evaluate(s.step, depth)) : 1;
           if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end))
             issue('LOOP_INTEGER', 'Loop bounds must be safe whole numbers.');
+          if (!Number.isSafeInteger(step) || step < 1)
+            issue('LOOP_STEP', 'The NEXT increase must be a positive whole number.');
           if (activeCounters.has(s.name))
             issue('LOOP_COUNTER_WRITE', `${s.name} is already counting another loop.`);
           activeCounters.add(s.name);
           try {
-            for (let i = start; s.style === 'range' ? i < end : i <= end; i++) {
+            for (let i = start; s.style === 'range' ? i < end : i <= end; i += step) {
               current = s;
               tick();
               variables[s.name] = i;

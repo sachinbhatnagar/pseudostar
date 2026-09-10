@@ -135,6 +135,18 @@ describe('block round trips', () => {
     });
   });
 
+  it('edits and preserves the NEXT increase', () => {
+    withWorkspace('FOR counter = 1 TO 6\nOUTPUT counter\nNEXT counter + 2', (workspace) => {
+      const block = workspace.getTopBlocks(true)[0];
+      expect(visibleRow(block, 'FOOTER')).toBe('NEXT counter + 2');
+      block.setFieldValue('counter + 3', 'COUNTER');
+      expect(sourceFor(workspace)).toBe(
+        'FOR counter = 1 TO 6\n    OUTPUT counter\nNEXT counter + 3',
+      );
+      expect(run(sourceFor(workspace), []).output).toEqual(['1', '4']);
+    });
+  });
+
   it('preserves 20 ELSEIF branches, bodies, and THEN placement through saved blocks', () => {
     const branches = Array.from(
       { length: 21 },

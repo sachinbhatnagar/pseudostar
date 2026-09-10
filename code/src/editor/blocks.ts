@@ -176,7 +176,10 @@ Blockly.Blocks['ps_for'] = {
     this.setNextStatement(true);
     this.setStyle('loop');
     const name = new Blockly.FieldTextInput('counter', (value) => {
-      this.getField('COUNTER')?.setValue(value);
+      const counter = this.getFieldValue('COUNTER'),
+        current = this.getFieldValue('NAME'),
+        increase = counter?.startsWith(current) ? counter.slice(current.length) : '';
+      this.getField('COUNTER')?.setValue(value + increase);
       return value;
     });
     const style = new Blockly.FieldDropdown(
@@ -202,7 +205,9 @@ Blockly.Blocks['ps_for'] = {
     style.setVisible(false);
     this.appendStatementInput('BODY');
     this.updateSyntax('next');
-    this.setTooltip('Right-click to change the loop form. TO includes its end; RANGE excludes it.');
+    this.setTooltip(
+      'Right-click to change the loop form. Edit NEXT to use an increase such as counter + 2.',
+    );
   },
   updateSyntax(this: Loop, style: string) {
     this.setFieldValue(style === 'range' ? 'IN RANGE(' : '=', 'OPEN');
@@ -212,7 +217,7 @@ Blockly.Blocks['ps_for'] = {
       if (!this.getInput('FOOTER'))
         this.appendDummyInput('FOOTER')
           .appendField('NEXT')
-          .appendField(new Blockly.FieldLabel(this.getFieldValue('NAME')), 'COUNTER');
+          .appendField(new Blockly.FieldTextInput(this.getFieldValue('NAME')), 'COUNTER');
     } else if (this.getInput('FOOTER')) this.removeInput('FOOTER');
   },
   customContextMenu(this: Loop, options: Blockly.ContextMenuRegistry.ContextMenuOption[]) {
@@ -409,7 +414,7 @@ export function sourceFor(ws: Blockly.Workspace, selected?: Blockly.Block) {
             ? `FOR ${f('NAME')} IN RANGE(${f('START')}, ${f('END')}):`
             : `FOR ${f('NAME')} = ${f('START')} TO ${f('END')}${f('STYLE') === 'colon' ? ':' : ''}`) +
           `\n${body('BODY')}` +
-          (f('STYLE') === 'next' ? `${pad}NEXT ${f('NAME')}` : '');
+          (f('STYLE') === 'next' ? `${pad}NEXT ${f('COUNTER')}` : '');
         text = text.trimEnd();
         break;
       case 'ps_if': {
@@ -525,7 +530,13 @@ export function programToWorkspace(program: Program, ws: Blockly.Workspace, reco
             fields:
               s.kind === 'sub'
                 ? { NAME: s.name }
-                : { NAME: s.name, START: s.start.raw, END: s.end.raw, STYLE: s.style },
+                : {
+                    NAME: s.name,
+                    START: s.start.raw,
+                    END: s.end.raw,
+                    STYLE: s.style,
+                    COUNTER: s.step ? `${s.name} + ${s.step.raw}` : s.name,
+                  },
             inputs: {},
           };
           {

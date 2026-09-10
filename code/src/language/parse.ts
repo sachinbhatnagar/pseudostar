@@ -176,11 +176,14 @@ export function parse(source: string): ParseResult {
       const style = m[4] ? 'colon' : 'next';
       at++;
       const body = sequence(style === 'colon' ? line.indent : undefined);
+      let step;
       if (style === 'next') {
-        if (lines[at]?.text !== `NEXT ${name}`) fail(`This loop needs NEXT ${name}.`);
+        const next = lines[at]?.text.match(new RegExp(`^NEXT ${name}(?: \\+ (.+))?$`));
+        if (!next) fail(`This loop needs NEXT ${name}, or NEXT ${name} + an increase.`);
+        if (next?.[1]) step = parseExpression(next[1]);
         at++;
       }
-      return { ...b, kind: 'for', name, start, end, style, body };
+      return { ...b, kind: 'for', name, start, end, style, body, ...(step ? { step } : {}) };
     }
     if ((m = text.match(new RegExp(`^SUB-ROUTINE (${identifier})\\(\\)$`)))) {
       const name = m[1];

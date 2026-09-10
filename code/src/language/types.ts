@@ -33,6 +33,7 @@ export type Statement = Base &
         name: string;
         start: Expr;
         end: Expr;
+        step?: Expr;
         style: 'next' | 'colon' | 'range';
         body: Statement[];
       }
