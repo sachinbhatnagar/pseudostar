@@ -286,16 +286,36 @@ Blockly.Blocks['ps_if'] = {
     this.rebuild();
   },
   customContextMenu(this: Conditional, options: Blockly.ContextMenuRegistry.ContextMenuOption[]) {
+    const change = (update: () => void) => {
+      const before = JSON.stringify(this.saveExtraState!());
+      const group = Blockly.Events.getGroup();
+      Blockly.Events.setGroup(true);
+      try {
+        update();
+        this.rebuild();
+        Blockly.Events.fire(
+          new Blockly.Events.BlockChange(
+            this,
+            'mutation',
+            null,
+            before,
+            JSON.stringify(this.saveExtraState!()),
+          ),
+        );
+      } finally {
+        Blockly.Events.setGroup(group);
+      }
+    };
     options.push({
       id: 'ps_add_branch',
       scope: { block: this },
       weight: 100,
       enabled: true,
       text: 'Add ELSEIF branch',
-      callback: () => {
-        this.branchCount++;
-        this.rebuild();
-      },
+      callback: () =>
+        change(() => {
+          this.branchCount++;
+        }),
     });
     options.push({
       id: 'ps_toggle_else',
@@ -303,10 +323,10 @@ Blockly.Blocks['ps_if'] = {
       weight: 101,
       enabled: true,
       text: this.hasElse ? 'Remove ELSE branch' : 'Add ELSE branch',
-      callback: () => {
-        this.hasElse = !this.hasElse;
-        this.rebuild();
-      },
+      callback: () =>
+        change(() => {
+          this.hasElse = !this.hasElse;
+        }),
     });
   },
 };
