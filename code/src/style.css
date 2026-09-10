@@ -223,6 +223,10 @@ p {
 .blocklyMainBackground {
   stroke: none !important;
 }
+.blocklyWorkspace.blocklyActiveFocus:not(:focus-visible) .blocklyWorkspaceFocusRing,
+.blocklyWorkspace.blocklyActiveFocus:not(:focus-visible) .blocklyWorkspaceSelectionRing {
+  stroke-width: 0 !important;
+}
 .workspace-status {
   color: #586b56;
   display: flex;

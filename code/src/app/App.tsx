@@ -301,28 +301,18 @@ function Studio({
     });
     return () => controller.abort();
   }, [user?.id]);
-  const [naming, setNaming] = useState<'copy' | 'edit' | 'save' | null>(null);
+  const [naming, setNaming] = useState<'copy' | 'save' | null>(null);
   const [newName, setNewName] = useState('');
   const [nameError, setNameError] = useState('');
   const [nameBusy, setNameBusy] = useState(false);
-  const namingProgram = useRef<SavedProgram | null>(null);
   const namingApplied = useRef(false);
   const namingOriginal = useRef('');
   const beginCopy = () => {
-    namingProgram.current = null;
     namingApplied.current = false;
     namingOriginal.current = doc.title;
     setNewName('');
     setNameError('');
     setNaming('copy');
-  };
-  const beginEdit = (program: SavedProgram) => {
-    namingProgram.current = program;
-    namingApplied.current = false;
-    namingOriginal.current = program.title;
-    setNewName('');
-    setNameError('');
-    setNaming('edit');
   };
   const saveNamed = async () => {
     const title = newName.trim();
@@ -340,13 +330,7 @@ function Studio({
       const programs = user
         ? (await scopedApi<{ programs: SavedProgram[] }>('/programs')).programs
         : listGuestPrograms();
-      const excludeId = namingApplied.current
-        ? user
-          ? doc.id
-          : doc.localId
-        : naming === 'edit'
-          ? namingProgram.current?.id
-          : undefined;
+      const excludeId = namingApplied.current ? (user ? doc.id : doc.localId) : undefined;
       if (
         programs.some(
           (p) => p.id !== excludeId && p.title.trim().toLowerCase() === title.toLowerCase(),
@@ -356,11 +340,7 @@ function Studio({
         return;
       }
       if (!namingApplied.current) {
-        if (naming === 'edit' && namingProgram.current) {
-          await document.load(namingProgram.current);
-          setDoc((value) => ({ ...value, title }));
-          runner.reset();
-        } else if (naming === 'save') setDoc((value) => ({ ...value, title, named: true }));
+        if (naming === 'save') setDoc((value) => ({ ...value, title, named: true }));
         else document.copy(title);
         namingApplied.current = true;
       } else setDoc((value) => ({ ...value, title }));
@@ -1344,8 +1324,10 @@ function Studio({
                       const program = user
                         ? (await scopedApi<{ program: SavedProgram }>(`/programs/${p.id}`)).program
                         : getGuestProgram(p.id);
+                      await document.load(program);
+                      runner.reset();
+                      setResults(null);
                       setSavedOpen(false);
-                      beginEdit(program);
                     })
                   }
                 >
@@ -1409,35 +1391,47 @@ function Studio({
         onOpenChange={(open) => {
           if (!open && !nameBusy) setNaming(null);
         }}
-        title="Save with a different name"
+        title={naming === 'save' ? 'Name your program' : 'Save a copy'}
+        className="naming-modal"
       >
         <form
+          className="naming-form"
           onSubmit={(event) => {
             event.preventDefault();
             void saveNamed();
           }}
         >
-          <label htmlFor="copy-name">New program name</label>
+          <label htmlFor="copy-name">Program name</label>
           <input
             id="copy-name"
             autoFocus
+            aria-describedby={
+              nameError ? 'program-name-help program-name-error' : 'program-name-help'
+            }
+            aria-invalid={!!nameError}
             maxLength={120}
             value={newName}
             disabled={nameBusy}
             onChange={(e) => setNewName(e.target.value)}
           />
-          <p>
-            {naming === 'edit'
-              ? 'This renames your saved program. Later changes update the same entry.'
-              : 'Later changes will save to this same copy.'}
+          <p id="program-name-help" className="form-help">
+            {naming === 'save'
+              ? 'Later changes will save to this program.'
+              : 'Later changes will save to this copy.'}
           </p>
-          {nameError && <p role="alert">{nameError}</p>}
-          <button type="button" disabled={nameBusy} onClick={() => setNaming(null)}>
-            Cancel
-          </button>
-          <button type="submit" disabled={nameBusy}>
-            {nameBusy ? 'Saving…' : 'Save program'}
-          </button>
+          {nameError && (
+            <p id="program-name-error" className="form-error" role="alert">
+              {nameError}
+            </p>
+          )}
+          <div className="naming-actions">
+            <button type="button" disabled={nameBusy} onClick={() => setNaming(null)}>
+              Cancel
+            </button>
+            <button className="primary" type="submit" disabled={nameBusy}>
+              {nameBusy ? 'Saving…' : 'Save program'}
+            </button>
+          </div>
         </form>
       </Modal>
       <Modal

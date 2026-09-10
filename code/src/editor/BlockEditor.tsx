@@ -81,10 +81,9 @@ export const BlockEditor = forwardRef<
     refreshOptions(ws);
     const listener = (event: Blockly.Events.Abstract) => {
       if (event.type === Blockly.Events.SELECTED) {
-        const selection = Blockly.common.getSelected();
-        setSelected(
-          selection instanceof Blockly.BlockSvg && selection.workspace === ws ? selection.id : null,
-        );
+        const id = (event as Blockly.Events.Selected).newElementId;
+        if (id && ws.getBlockById(id)) setSelected(id);
+        else if (host.current?.contains(document.activeElement)) setSelected(null);
       }
       // A field emits partial values while the learner is still typing.
       if (event.isUiEvent || event.type === Blockly.Events.BLOCK_FIELD_INTERMEDIATE_CHANGE) return;
@@ -258,8 +257,12 @@ export const BlockEditor = forwardRef<
         }
       }
       if (action === 'unnest' && parent) {
+        let child: Blockly.Block = b;
         let container: Blockly.Block | null = parent;
-        while (container && container.getNextBlock() === b) container = container.getParent();
+        while (container && container.getNextBlock() === child) {
+          child = container;
+          container = container.getParent();
+        }
         if (container?.nextConnection && b.previousConnection) {
           b.unplug(true);
           container.nextConnection.connect(b.previousConnection);
