@@ -31,6 +31,28 @@ const visibleRow = (block: Blockly.Block, name: string) =>
     .join(' ');
 
 describe('block round trips', () => {
+  it('preserves COMPUTE through blocks, saved workspaces, and syntax changes', () => {
+    const source =
+      'SET items = [[1, 2]]\nCOMPUTE count AS LENGTH(items[1])\nCOMPUTE items[1][2] AS count * 3\nOUTPUT items';
+    withWorkspace(source, (workspace) => {
+      const saved = Blockly.serialization.workspaces.save(workspace);
+      Blockly.serialization.workspaces.load(saved, workspace);
+      expect(sourceFor(workspace)).toBe(source);
+      expect(run(sourceFor(workspace), []).output).toEqual(['[[1,6]]']);
+      for (const block of workspace
+        .getAllBlocks(false)
+        .filter((b) => b.getFieldValue('PREFIX') === 'COMPUTE')) {
+        expect(block.getField('PREFIX')?.isVisible()).toBe(true);
+        expect(block.getFieldValue('SEPARATOR')).toBe('AS');
+        for (const prefix of ['', 'SET', 'COMPUTE']) {
+          block.setFieldValue(prefix, 'PREFIX');
+          expect(block.getFieldValue('SEPARATOR')).toBe(prefix === 'COMPUTE' ? 'AS' : '=');
+          expect(block.getField('PREFIX')?.isVisible()).toBe(prefix !== '');
+          expect(run(sourceFor(workspace), []).output).toEqual(['[[1,6]]']);
+        }
+      }
+    });
+  });
   it('preserves SET and function-result blocks through execution and formatting', () => {
     const source =
       'SET items = [[1,2], [3]]\nSET count = LENGTH(items)\nSET items[2][1] = MAX(count, LENGTH(items[1]))\nOUTPUT items';

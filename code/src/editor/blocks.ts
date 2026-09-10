@@ -19,23 +19,28 @@ Blockly.Extensions.register('ps_assignment_syntax', function () {
   const syntax = this.appendDummyInput('SYNTAX');
   syntax.setVisible(false);
   prefix.setValidator((value) => {
-    const from = value === 'SET' ? syntax : row;
-    const to = value === 'SET' ? row : syntax;
+    const from = value ? syntax : row;
+    const to = value ? row : syntax;
     const index = from.fieldRow.indexOf(prefix);
     if (index !== -1) {
       from.fieldRow.splice(index, 1);
       to.fieldRow.unshift(prefix);
     }
-    prefix.setVisible(value === 'SET');
+    prefix.setVisible(value !== '');
+    this.setFieldValue(value === 'COMPUTE' ? 'AS' : '=', 'SEPARATOR');
     return value;
   });
   (this as Blockly.BlockSvg).customContextMenu = (options) => {
-    const useSet = prefix.getValue() !== 'SET';
-    options.push({
-      text: useSet ? 'Use SET' : 'Use plain assignment',
-      enabled: true,
-      callback: () => prefix.setValue(useSet ? 'SET' : ''),
-    });
+    for (const [value, text] of [
+      ['SET', 'Use SET'],
+      ['COMPUTE', 'Use COMPUTE'],
+      ['', 'Use plain assignment'],
+    ])
+      options.push({
+        text,
+        enabled: prefix.getValue() !== value,
+        callback: () => prefix.setValue(value),
+      });
   };
 });
 Blockly.common.defineBlocksWithJsonArray([
@@ -69,13 +74,15 @@ Blockly.common.defineBlocksWithJsonArray([
   },
   {
     type: 'ps_set',
-    message0: '%1 %2 = %3',
+    message0: '%1 %2 %3 %4',
     args0: [
       dropdown('PREFIX', [
         ['SET', 'SET'],
+        ['COMPUTE', 'COMPUTE'],
         ['Plain assignment', ''],
       ]),
       field('NAME', 'total'),
+      { type: 'field_label', name: 'SEPARATOR', text: '=' },
       field('EXPR', '0'),
     ],
     previousStatement: null,
@@ -85,13 +92,15 @@ Blockly.common.defineBlocksWithJsonArray([
   },
   {
     type: 'ps_function_value',
-    message0: '%1 %2 = %3 ( %4 )',
+    message0: '%1 %2 %3 %4 ( %5 )',
     args0: [
       dropdown('PREFIX', [
         ['SET', 'SET'],
+        ['COMPUTE', 'COMPUTE'],
         ['Plain assignment', ''],
       ]),
       field('NAME', 'count'),
+      { type: 'field_label', name: 'SEPARATOR', text: '=' },
       field('FUNCTION', 'LENGTH'),
       field('ARGS', 'items'),
     ],
@@ -99,7 +108,8 @@ Blockly.common.defineBlocksWithJsonArray([
     nextStatement: null,
     style: 'variable',
     extensions: ['ps_assignment_syntax'],
-    tooltip: 'Run a function and store its result. For example: SET count = LENGTH(items).',
+    tooltip:
+      'Run a function and store its result. Choose COMPUTE to show COMPUTE count AS LENGTH(items).',
   },
   {
     type: 'ps_while',
@@ -324,7 +334,12 @@ export const theme = Blockly.Theme.defineTheme('pseudostar', {
 export const palette = [
   { type: 'ps_output', label: 'OUTPUT', hint: 'Show a value', category: 'output' },
   { type: 'ps_input', label: 'INPUT', hint: 'Ask for a value', category: 'input' },
-  { type: 'ps_set', label: 'SET', hint: 'Store or update a value', category: 'variable' },
+  {
+    type: 'ps_set',
+    label: 'SET / COMPUTE',
+    hint: 'Store or calculate a value',
+    category: 'variable',
+  },
   {
     type: 'ps_function_value',
     label: 'Function result',
@@ -365,10 +380,10 @@ export function sourceFor(ws: Blockly.Workspace, selected?: Blockly.Block) {
         text = `INPUT ${f('FORMAT') === 'JSON' ? 'JSON ' : ''}${f('NAME')}`;
         break;
       case 'ps_set':
-        text = `${f('PREFIX') === 'SET' ? 'SET ' : ''}${f('NAME')} = ${f('EXPR')}`;
+        text = `${f('PREFIX') ? f('PREFIX') + ' ' : ''}${f('NAME')} ${f('PREFIX') === 'COMPUTE' ? 'AS' : '='} ${f('EXPR')}`;
         break;
       case 'ps_function_value':
-        text = `${f('PREFIX') === 'SET' ? 'SET ' : ''}${f('NAME')} = ${f('FUNCTION')}(${f('ARGS')})`;
+        text = `${f('PREFIX') ? f('PREFIX') + ' ' : ''}${f('NAME')} ${f('PREFIX') === 'COMPUTE' ? 'AS' : '='} ${f('FUNCTION')}(${f('ARGS')})`;
         break;
       case 'ps_while':
         text = `WHILE ${f('EXPR')}\n${body('BODY')}${pad}ENDWHILE`;
@@ -462,7 +477,7 @@ export function programToWorkspace(program: Program, ws: Blockly.Workspace, reco
                   ...block,
                   type: 'ps_function_value',
                   fields: {
-                    PREFIX: s.set ? 'SET' : '',
+                    PREFIX: s.compute ? 'COMPUTE' : s.set ? 'SET' : '',
                     NAME: s.kind === 'assign' ? s.name : s.target.raw,
                     FUNCTION: s.value.name,
                     ARGS: s.value.args.map((a) => a.raw).join(', '),
@@ -472,7 +487,7 @@ export function programToWorkspace(program: Program, ws: Blockly.Workspace, reco
                   ...block,
                   type: 'ps_set',
                   fields: {
-                    PREFIX: s.set ? 'SET' : '',
+                    PREFIX: s.compute ? 'COMPUTE' : s.set ? 'SET' : '',
                     NAME: s.kind === 'assign' ? s.name : s.target.raw,
                     EXPR: s.value.raw,
                   },

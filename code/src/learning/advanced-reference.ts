@@ -1,6 +1,11 @@
 export const advancedReference = `SET stores or updates a value. No separate declaration is needed.
 SET count = 0
-SET count = count + 1
+COMPUTE count AS count + 1
+COMPUTE calculates an expression and stores its result. Use SET for initial values and copies.
+COMPUTE area AS height * width
+COMPUTE area = height * width is also accepted. Format and blocks change it to COMPUTE area AS height * width.
+COMPUTE and AS also accept lowercase or mixed case. Variable names keep their case.
+Use operators such as * and +, not English phrases such as times or sum of.
 SET count TO 2 is also accepted. Format changes it to SET count = 2.
 Existing count = 2 instructions still work. In a condition, = compares values.
 
@@ -8,18 +13,19 @@ Lists store several values. Indexes start at 1.
 SET items = [4, 7, 9]
 OUTPUT items[2]
 SET items[1] = 6
-SET count = LENGTH(items)
+COMPUTE count AS LENGTH(items)
 OUTPUT LENGTH(items)
-Use a function inside SET, OUTPUT, conditions, loop bounds, or another function call.
+Use a function inside COMPUTE, SET, OUTPUT, conditions, loop bounds, or another function call.
 The Function result block stores a function result. Enter its name and inputs.
-For a calculation such as LENGTH(items) + 1, enter it in the SET block value field.
-CALL runs a function without storing or showing its result. Use SET or OUTPUT when you need the result.
+For a calculation such as LENGTH(items) + 1, use the SET / COMPUTE block and choose COMPUTE.
+Right-click an assignment block to choose SET, COMPUTE, or plain assignment.
+CALL runs a function without storing or showing its result. Use COMPUTE, SET, or OUTPUT when you need the result.
 
 Read a list with INPUT JSON items. Enter [4, 7, 9]. Never use plain INPUT for a list: it reads the brackets as text, and LENGTH then counts characters instead of items.
 Normal INPUT still reads a number or text.
 
 WHILE count < 5
-    SET count = count + 1
+    COMPUTE count AS count + 1
 ENDWHILE
 Give count a value before the loop. Make sure the condition can become false.
 

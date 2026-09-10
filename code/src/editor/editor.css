@@ -2,6 +2,9 @@
 .blockly-host .zelos-renderer.pseudostar-theme .blocklyDropdownText {
   fill: #283b2e !important;
 }
+.zelos-renderer.pseudostar-theme .blocklyDropdownMenu .blocklyMenuItemContent {
+  color: #283b2e;
+}
 .blockly-host .ps-execution-block > .blocklyPath {
   stroke: #36543e;
   stroke-width: 3px;

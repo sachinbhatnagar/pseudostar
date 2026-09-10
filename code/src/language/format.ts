@@ -20,10 +20,11 @@ export function format(program: Program): { source: string; ranges: Map<string, 
           line(`${s.keyword} ${s.values.map((v) => v.raw).join(', ')}`, level);
           break;
         case 'assign':
-          line(`${s.set ? 'SET ' : ''}${s.name} = ${s.value.raw}`, level);
-          break;
         case 'indexedAssign':
-          line(`${s.set ? 'SET ' : ''}${s.target.raw} = ${s.value.raw}`, level);
+          line(
+            `${s.compute ? 'COMPUTE ' : s.set ? 'SET ' : ''}${s.kind === 'assign' ? s.name : s.target.raw} ${s.compute ? 'AS' : '='} ${s.value.raw}`,
+            level,
+          );
           break;
         case 'invoke':
           line(`CALL ${s.expression.raw}`, level);
