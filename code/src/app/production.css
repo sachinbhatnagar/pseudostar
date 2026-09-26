@@ -522,6 +522,57 @@
   border-radius: 5px;
   font-size: 12px;
 }
+.naming-modal {
+  width: min(480px, calc(100vw - 32px));
+}
+.naming-form {
+  display: grid;
+  gap: 9px;
+}
+.naming-form label {
+  font-size: 13px;
+  font-weight: 650;
+}
+.naming-form input {
+  width: 100%;
+  border: 1px solid #8ea187;
+  border-radius: 5px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  padding: 11px 12px;
+}
+.naming-form input:focus-visible {
+  outline: 3px solid #547960;
+  outline-offset: 2px;
+}
+.naming-form .form-help,
+.naming-form .form-error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.naming-form .form-help {
+  color: #506649;
+}
+.naming-form .form-error {
+  color: #783c34;
+}
+.naming-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+.naming-actions button {
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.naming-actions button:first-child {
+  background: #e3ebdd;
+}
 .library-filters {
   display: grid;
   grid-template-columns: minmax(0, 200px);

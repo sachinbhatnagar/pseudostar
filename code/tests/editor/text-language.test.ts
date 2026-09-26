@@ -12,7 +12,7 @@ import {
 describe('text language', () => {
   it('highlights real tokens and keeps quoted syntax together', () => {
     const source =
-      'SET count = LENGTH([1, 2])\nSUB-ROUTINE show()\nIF count >= 2 AND TRUE THEN\nPRINT "IF + 99", .5\nENDIF\nEND SUB';
+      'SET count = LENGTH([1, 2])\nCompute area as count * 2\nSUB-ROUTINE show()\nIF count >= 2 AND TRUE THEN\nPRINT "IF + 99", .5\nENDIF\nEND SUB';
     const tokens: { text: string; classes: string }[] = [];
     highlightTree(
       pseudocodeLanguage.parser.parse(source),
@@ -39,6 +39,10 @@ describe('text language', () => {
     expect(tokens.find((token) => token.text === 'IF')?.classes).not.toBe(
       tokens.find((token) => token.text === '"IF + 99"')?.classes,
     );
+    for (const text of ['Compute', 'as'])
+      expect(tokens.find((token) => token.text === text)?.classes).toBe(
+        tokens.find((token) => token.text === 'SET')?.classes,
+      );
   });
 
   it('sets, moves, and clears a one-based execution line without changing selection', () => {

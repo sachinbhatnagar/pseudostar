@@ -1,6 +1,6 @@
 import { it, expect } from 'vitest';
 import { harness } from './harness';
-const solution = 'INPUT n\nSET result = n * 2\nOUTPUT result';
+const solution = 'INPUT n\nCOMPUTE result AS n * 2\nOUTPUT result';
 const input = {
   statement: 'Read a whole number from 0 to 10 and output twice its value.',
   solution,
@@ -199,23 +199,26 @@ it('allows only the author to edit or delete and rejects stale edits', async () 
     await h.close();
   }
 });
-it('rejects pseudocode in the generated description', async () => {
-  const h = await harness({
-    generations: [
-      {
-        ...metadata,
-        problem: { ...metadata.problem, statement: 'SET firstNumber = 10. OUTPUT firstNumber.' },
-      },
-      { solution: 'OUTPUT 10' },
-    ],
-  });
-  try {
-    const user = await h.login();
-    const response = await h.request('/api/problems/publish', 'POST', input, user.cookie);
-    expect(response.status).toBe(502);
-    expect(((await response.json()) as any).error.code).toBe('INVALID_DESCRIPTION');
-    expect(((await (await h.request('/api/problems')).json()) as any).problems).toEqual([]);
-  } finally {
-    await h.close();
-  }
-});
+it.each(['SET firstNumber = 10. OUTPUT firstNumber.', 'COMPUTE total AS first + second.'])(
+  'rejects pseudocode in the generated description: %s',
+  async (statement) => {
+    const h = await harness({
+      generations: [
+        {
+          ...metadata,
+          problem: { ...metadata.problem, statement },
+        },
+        { solution: 'OUTPUT 10' },
+      ],
+    });
+    try {
+      const user = await h.login();
+      const response = await h.request('/api/problems/publish', 'POST', input, user.cookie);
+      expect(response.status).toBe(502);
+      expect(((await response.json()) as any).error.code).toBe('INVALID_DESCRIPTION');
+      expect(((await (await h.request('/api/problems')).json()) as any).problems).toEqual([]);
+    } finally {
+      await h.close();
+    }
+  },
+);

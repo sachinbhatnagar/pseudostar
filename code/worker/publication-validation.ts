@@ -23,7 +23,7 @@ export function publicationCandidate(
     p = object(c.problem);
   const statement = str(p.statement, 'learner statement', 16000);
   if (
-    /```|\b(?:SET|OUTPUT|INPUT|PRINT|RETURN|ENDIF|ENDFUNCTION)\b|\b[A-Za-z_]\w*\s*(?:=|←)\s*[^=]/.test(
+    /```|\b(?:SET|COMPUTE|OUTPUT|INPUT|PRINT|RETURN|ENDIF|ENDFUNCTION)\b|\b[A-Za-z_]\w*\s*(?:=|←)\s*[^=]/.test(
       statement,
     )
   )

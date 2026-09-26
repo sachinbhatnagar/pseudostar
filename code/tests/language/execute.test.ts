@@ -22,6 +22,15 @@ describe('reference dialect', () => {
     expect(run('FOR i = 1 TO 3\nOUTPUT i\nNEXT i', []).output).toEqual(['1', '2', '3']);
     expect(run('FOR i IN RANGE(1, 3):\n    OUTPUT i', []).output).toEqual(['1', '2']);
   });
+  it('uses a configurable NEXT increase', () => {
+    const source = 'FOR counter = 1 TO 6\n    OUTPUT counter\nNEXT counter + 2';
+    const parsed = parse(source);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(format(parsed.program).source).toBe(source);
+    expect(run(source, []).output).toEqual(['1', '3', '5']);
+    for (const increase of ['0', '-1', '1.5'])
+      expect(run(`FOR i = 1 TO 3\nNEXT i + ${increase}`, []).error?.code).toBe('LOOP_STEP');
+  });
   it('keeps strings and output concatenation', () =>
     expect(run('INPUT n\nPRINT "Total " + n\nOUTPUT "Value: ", n & "!"', ['4']).output).toEqual([
       'Total 4',

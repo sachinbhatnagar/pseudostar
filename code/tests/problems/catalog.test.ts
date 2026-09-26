@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { catalog } from '../../src/problems/catalog';
 import { internalSolutions } from '../../internal/solutions';
+import { checkProgram } from '../../src/problems/check';
 
 const referenceIds = [
   ...Array.from({ length: 7 }, (_, i) => `task_1_${i + 1}`),
@@ -32,6 +33,10 @@ describe('production problem content', () => {
   });
 
   for (const problem of catalog) {
+    it(`${problem.id}: runs its stored solution against every case`, () => {
+      for (const result of checkProgram(problem, internalSolutions[problem.id]))
+        expect(result.passed, JSON.stringify(result)).toBe(true);
+    });
     it(`${problem.id}: has complete public metadata and progressive help`, () => {
       expect(problem.version).toBe(1);
       expect(problem.id).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);

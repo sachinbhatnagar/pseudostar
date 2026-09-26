@@ -130,12 +130,16 @@ export function parse(source: string): ParseResult {
       at++;
       return { ...b, kind: 'invoke', expression };
     }
-    if ((m = text.match(/^(SET\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\[.+\])?)\s*(=|TO)\s*(.+)$/))) {
+    if (
+      (m = text.match(/^(COMPUTE\s+)([A-Za-z_][A-Za-z0-9_]*(?:\[.+?\])?)\s*(=|\sAS\s)\s*(.+)$/i)) ||
+      (m = text.match(/^(SET\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\[.+?\])?)\s*(=|TO)\s*(.+)$/))
+    ) {
       if (m[3] === 'TO' && !m[1]) fail('Use SET before an assignment with TO.');
       const target = parseExpression(m[2]);
       const value = parseExpression(m[4]);
       at++;
-      const syntax = m[1] ? { set: true } : {};
+      const syntax =
+        m[1]?.trim().toUpperCase() === 'COMPUTE' ? { compute: true } : m[1] ? { set: true } : {};
       if (target.kind === 'name')
         return { ...b, ...syntax, kind: 'assign', name: target.name, value };
       if (target.kind !== 'index') fail('Choose a variable or an indexed list item.');
@@ -172,11 +176,14 @@ export function parse(source: string): ParseResult {
       const style = m[4] ? 'colon' : 'next';
       at++;
       const body = sequence(style === 'colon' ? line.indent : undefined);
+      let step;
       if (style === 'next') {
-        if (lines[at]?.text !== `NEXT ${name}`) fail(`This loop needs NEXT ${name}.`);
+        const next = lines[at]?.text.match(new RegExp(`^NEXT ${name}(?: \\+ (.+))?$`));
+        if (!next) fail(`This loop needs NEXT ${name}, or NEXT ${name} + an increase.`);
+        if (next?.[1]) step = parseExpression(next[1]);
         at++;
       }
-      return { ...b, kind: 'for', name, start, end, style, body };
+      return { ...b, kind: 'for', name, start, end, style, body, ...(step ? { step } : {}) };
     }
     if ((m = text.match(new RegExp(`^SUB-ROUTINE (${identifier})\\(\\)$`)))) {
       const name = m[1];
@@ -196,6 +203,8 @@ export function parse(source: string): ParseResult {
       at++;
       return { ...b, kind: 'invoke', expression };
     }
+    if (/^COMPUTE\b/i.test(text))
+      fail('Use COMPUTE name AS expression, such as COMPUTE area AS height * width.');
     return fail(
       `Cannot read “${text.slice(0, 60)}”. Use a textbook instruction such as INPUT or OUTPUT.`,
     );

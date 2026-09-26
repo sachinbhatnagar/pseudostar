@@ -1,5 +1,14 @@
 import { test, expect, editor, guest, write } from './fixtures';
 
+test('pointer focus does not draw a border around the block workspace', async ({ page }) => {
+  await guest(page);
+  await page.getByRole('button', { name: 'Blocks', exact: true }).click();
+  const workspace = page.locator('.blocklyWorkspace');
+  await workspace.click({ position: { x: 400, y: 200 } });
+  await expect(workspace).toHaveClass(/blocklyActiveFocus/);
+  await expect(page.locator('.blocklyWorkspaceFocusRing')).toHaveCSS('stroke-width', '0px');
+});
+
 test('SET and function results work in text, blocks, and the variable monitor', async ({
   page,
 }) => {
