@@ -1,73 +1,183 @@
-# PseudoStar design
+---
+name: PseudoStar Studio
+description: Compact subject workspaces for tasks, work, and results.
+colors:
+  ict-accent: "#315b45"
+  english-accent: "#684658"
+  white: "#ffffff"
+  ict-ink: "#28332e"
+  ict-line: "#dbe1dc"
+  ict-surface: "#f7f9f7"
+  english-ink: "#303036"
+  english-muted: "#65616a"
+  english-line: "#dedade"
+  english-surface: "#faf9fa"
+  english-wash: "#f3eff2"
+  english-field-line: "#c7bcc3"
+  english-hover: "#513543"
+  ict-hover: "#233c28"
+  ict-button-text: "#f7f9f5"
+typography:
+  brand:
+    fontFamily: "system-ui, sans-serif"
+    fontSize: "20px"
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: "-0.5px"
+  heading:
+    fontFamily: "system-ui, sans-serif"
+    fontSize: "20px"
+    lineHeight: 1.35
+  english-body:
+    fontFamily: "system-ui, sans-serif"
+    fontSize: "13px"
+    lineHeight: 1.5
+  ict-body:
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    fontSize: "14px"
+  navigation:
+    fontFamily: "system-ui, sans-serif"
+    fontSize: "13px"
+    fontWeight: 500
+    lineHeight: 1.4
+  block-fields:
+    fontFamily: '"SFMono-Regular", Consolas, monospace'
+    fontSize: "13px"
+    fontWeight: 500
+rounded:
+  control: "4px"
+  ict-panel: "6px"
+  dialog: "8px"
+spacing:
+  compact: "8px"
+  gap: "12px"
+  panel: "16px"
+  inset: "18px"
+  page: "24px"
+components:
+  button-ict-primary:
+    backgroundColor: "{colors.ict-accent}"
+    textColor: "{colors.ict-button-text}"
+    rounded: "{rounded.control}"
+    padding: "12px 18px"
+  button-english-primary:
+    backgroundColor: "{colors.english-accent}"
+    textColor: "{colors.white}"
+    rounded: "{rounded.control}"
+    padding: "7px 13px"
+  button-english-primary-hover:
+    backgroundColor: "{colors.english-hover}"
+    textColor: "{colors.white}"
+  button-english-secondary:
+    backgroundColor: "{colors.white}"
+    textColor: "{colors.english-ink}"
+    rounded: "{rounded.control}"
+    padding: "6px 11px"
+  english-response:
+    backgroundColor: "{colors.white}"
+    textColor: "{colors.english-ink}"
+    rounded: "{rounded.control}"
+    padding: "10px 12px"
+  ict-panel:
+    backgroundColor: "{colors.white}"
+    rounded: "{rounded.ict-panel}"
+    padding: "18px"
+---
+
+# Design System: PseudoStar Studio
 
 ## Overview
 
-Target: complete production application. Current implementation is incomplete.
-Mode: Operate. Help a Grade 8 learner arrange and inspect textbook pseudocode.
-This records the current implementation, not final user visual approval or full app delivery.
-Sources: PRODUCT.md, code/src/style.css, code/src/blocks.ts; interaction wiring in code/src/main.tsx.
+**Creative North Star: "The Compact Studio"**
+
+The approved compact studio gives ICT and English one working structure: a shared top bar, a task area, a work area, and results. Small system type and restrained subject colors keep the work in view. The real editor and response fields are the main visual objects.
+
+This document records the current implementation. Sources are `code/src/app/studio.css`, `code/src/english/english.css`, `code/src/app/App.tsx`, and the English workspace and attempt components. Base editor rules remain in `code/src/style.css` and `code/src/app/production.css`. The shared stylesheet loads after those base styles. This record does not establish browser verification or production release status.
+
+**Key Characteristics:**
+
+- Compact system typography.
+- Forest accents for ICT; mulberry accents for English.
+- White working surfaces with small corners and clear boundaries.
+- Task, work, and results remain in reading order on small screens.
 
 ## Colors
 
-- Main ink: #283e30; page: #edf1eb; studio: #f7f9f5.
-- Lesson: #e4ebe0; canvas: #f0f4ed; code panel: #eaf0e6; help: #dce6da.
-- Canvas CSS overrides the Blockly theme workspace background (#f7f9f5).
-- Download: #344f39 with #f7f9f5 text; hover: #243e29.
-- Focus outline: #547960; selected block stroke: #385d42; Blockly text: #283b2e.
-- Block fill / theme edge: OUTPUT #d2e3d3 / #92ad94; INPUT #e8d8d7 / #b89d9a.
-- Assignment #e4e1cc / #b8b293; selection #e9d7c4 / #ba9c7b.
-- Loop #d4e2e5 / #95afb4; routine and call #d9dcd0 / #9ea88c.
-- Code ink: #324c32; bold keywords: #264c33; line numbers: #6a7c65.
+### Primary
+
+Forest marks ICT actions, the brand symbol, and active editor controls. Mulberry has the same role in English. The subject defines the accent; it does not change the shared navigation structure.
+
+### Neutral
+
+White is the page and primary work surface. Each subject supplies its own ink, boundary, and soft-surface colors. English wash distinguishes quiet hover states and table headers. Muted English ink is for secondary text, save status, and word counts.
+
+### Functional colors
+
+Blockly retains the category palette in `code/src/editor/blocks.ts`: output, input, variables, selection, loops, and routines. These colors encode instruction type. Keep the category colors and selection marks when changing the surrounding workspace.
 
 ## Typography
 
-- Brand and lesson heading: Sentient, Georgia, serif; other headings use the body family.
-- Brand: 28px, weight 600; lesson heading: 37px, weight 500, line height 1.14.
-- Body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; base 14px.
-- Block fields and code: "SFMono-Regular", Consolas, monospace; Blockly theme 12px/500.
-- Preview code: 10px with 25px line height; line numbers use generic monospace.
-- Sentient weights 500 and 600 currently load remotely through a Fontshare CSS import.
-- Final release requirement: self-host the licensed font files; remote loading is provisional.
+Use system type for the brand, headings, navigation, forms, and dialogs. Use monospace for pseudocode and block fields. Existing Sentient font assets are not the approved studio display face.
+
+The brand uses the frontmatter role and becomes 18px on phones. Workspace headings use the heading role; English attempt titles are 17px. English panel headings are 15px; ICT results headings are 14px. Supporting text is generally 11–12px. Timers, word counts, and scores use tabular numerals. Sign-in headings are 32px on desktop and 28px on phones.
 
 ## Layout
 
-- Desktop: lesson 255px, editor minmax(580px, 1fr), preview 300px; studio margin 24px.
-- At 1600px and above: lesson 280px, preview 330px, block tray 190px.
-- At 1190px and below: lesson/editor columns; preview spans the row below.
-- At 760px and below: lesson, editor, preview stack; tray becomes a horizontal scroll row.
-- Mobile tray blocks are 135px wide; studio side margins are 10px; preview scrolls horizontally.
-- Workspace resizes with its host; zoom and pan keep larger programs accessible.
+The top bar holds the brand, native subject selector, subject navigation, and account controls. Its minimum height is 64px, with 12px vertical and 24px horizontal padding. Controls can wrap. Below 760px, navigation occupies its own row and the header has 16px side padding.
+
+ICT uses an outer task/workbench grid: `minmax(220px, 0.85fr) minmax(0, 2.6fr)`. The workbench divides into work and results at `minmax(0, 1.6fr) minmax(250px, 1fr)`. Gaps are 12px. The page margin is 18px 24px 24px. Task, compose, and result panels have 20px, 16px, and 18px padding respectively. The task sidebar can collapse; fullscreen belongs to the workbench.
+
+English attempts use `minmax(220px, 0.85fr) minmax(320px, 1.6fr) minmax(260px, 1fr)`, with 10px gaps and 15px panel padding. Dashboard tools use four columns; the dashboard focus region uses two. Long prose can wrap within panels, and English data tables have a horizontal scroll container.
+
+At 1100px and below, ICT results move below the editor and output/variables share a row. English review spans the row below task and response; tools use two columns. At 760px and below, task, work, and results stack in source order. ICT page margins become 16px, and English page padding becomes 15px 12px. English settings become an inline panel on phones.
 
 ## Elevation & Depth
 
-Surface tones separate the work areas. CSS removes Blockly light/dark path shading.
-No CSS box shadows. Editable fields use translucent white; selection uses a 2px stroke.
+Work panels stay flat. White surfaces, subject-tinted interiors, and quiet boundaries define regions. Settings menus use small directional shadows: ICT `0 4px 12px #28332e14`, English `0 5px 12px #35232d12`. English mobile settings remove the shadow. Buttons have no hover translation. Keep focus outlines distinct from elevation.
 
 ## Shapes
 
-Studio radius: 18px, reduced to 13px on mobile. Download radius: 7px.
-Tray blocks have asymmetric 5px/10px corners and a small connector tab.
-Workspace blocks use real Blockly Zelos connections and statement cavities.
+Controls and English panels use the control radius. ICT work and result panels use the ICT panel radius. Dialogs use the dialog radius. Native Blockly connection shapes and statement cavities remain intact. Do not replace executable block structure with decorative rounded cards.
 
 ## Components
 
-- Real nesting: IF has THEN/ELSE statement inputs; FOR and SUB-ROUTINE have BODY inputs.
-- Connected blocks generate ordered pseudocode with four-space nesting and explicit closing syntax.
-- Mouse: drag from the tray into the canvas, or click to add; workspace blocks connect and move.
-- Touch: tap the tray to add; native tray/page scrolling remains available through touch-action:auto.
-- Tray touch input bypasses custom mouse pointer capture; arrange added blocks in Blockly.
-- Live preview is read-only. Download exports pseudocode; browser storage retains the workspace.
-- Help, progressive hints, Undo, Redo, zoom and fit have handlers; no fake Run control exists.
-- Button color transitions last 0.16s; reduced-motion disables transitions; focus stays visible.
+### Buttons
+
+ICT primary actions use forest with pale text. Run controls reduce the primary padding to 8px 10px and use 12px type. English primary actions use mulberry with white text and darken on hover. English secondary actions use a white surface and a quiet border; hover uses English wash. Disabled English controls use 0.55 opacity. Keep existing action handlers and disabled conditions.
+
+### Inputs and response fields
+
+Use visible labels and a white input surface. English response fields use the field boundary color, vertical resizing, and 1.65 line height. Response textareas have a 125px minimum height. Focus uses a 2px mulberry outline with 3px offset; ICT buttons and links retain their 3px forest focus outline with 4px offset. Do not replace native selectors or textareas with visual props.
+
+### Navigation and settings
+
+The top bar uses compact 13px navigation with 8px 10px padding. Current English navigation uses accent text, a soft surface, and heavier type. User settings use native details/summary disclosure. The subject selector remains a native select. On narrow screens, wrapping must preserve every action.
+
+### Task, work, and results
+
+ICT shows the problem beside the live block/text editor and execution results. English shows instructions and assessment criteria beside a response form and review. Saved attempts, feedback, revisions, and timers remain real application state. Empty, busy, error, and save-conflict messages must remain visible.
+
+### Blockly editor
+
+Instruction colors and connections carry meaning. IF contains conditional branches; loops and routines contain statement bodies. The workspace uses the Zelos renderer and generates ordered pseudocode. Preserve block/text synchronization, zoom, fit, undo, redo, keyboard access, and the existing touch flow. These are behavior constraints, not optional visual effects.
+
+### Motion
+
+Use short color transitions only where controls already use them: ICT 160ms ease and English 140ms ease-out. Reduced-motion rules remove transitions. Text and controls must be visible before motion runs.
 
 ## Do's and Don'ts
 
-- Preserve textbook syntax, actual block structure, legible fields and the complete production scope.
-- Do not present planned text editing, execution, accounts or saved-program services as implemented.
-- Do not treat this code record as browser verification or final visual approval.
+### Do:
 
-## Final interface review - 2026-09-06
+- Do use the shared top bar and subject tokens for new workspace screens.
+- Do preserve real editor connections, text editing, execution, saving, and feedback behavior.
+- Do keep content visible without animation and retain visible keyboard focus.
+- Do test long responses, variable values, narrow screens, and open settings for overflow.
+- Do treat the approved compact system font as the identity for this studio.
 
-Reviewed the complete anti-slop rules against the app. The working pseudocode editor is the visual focus. Sentient is self-hosted under its publisher licence; body text uses the system font. Palette colours distinguish instruction roles. Controls use stable geometry and tonal states. There are no decorative glows, hero templates, entrance-hidden content, fake product panels, or ornamental icon tiles.
+### Don't:
 
-Desktop and phone inspection verified field centering, text contrast, padding, block nesting, readable source, dialogs, hints and output. Fixed the touch instruction wrapping into a narrow column, pale execution highlighting, and loop labels that did not follow the source syntax. Browser tests cover tablet/phone overflow, keyboard use and reduced motion. Real pointer dragging, snapping, execution and undo were also checked.
+- Don't restore the previous serif-led, large-heading visual system.
+- Don't add decorative hero panels, glows, floating cards, or entrance-hidden content.
+- Don't recolor Blockly categories to the English accent or remove their semantic distinctions.
+- Don't describe this source record as proof of completed testing or deployment.
