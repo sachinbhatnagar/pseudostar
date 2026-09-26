@@ -1,3 +1,4 @@
+import { Button, Input } from '../components/ui/controls';
 import { useEffect, useState } from 'react';
 import { api, type User } from '../programs/api';
 export function SignIn({
@@ -136,7 +137,7 @@ export function AuthForm({
           {!challenge ? (
             <label>
               Email address
-              <input
+              <Input
                 type="email"
                 autoComplete="email"
                 disabled={busy}
@@ -149,7 +150,7 @@ export function AuthForm({
           ) : (
             <label>
               Sign-in code
-              <input
+              <Input
                 className="otp-input"
                 inputMode="numeric"
                 autoComplete="one-time-code"
@@ -169,23 +170,23 @@ export function AuthForm({
               {error}
             </p>
           )}
-          <button className="primary" disabled={busy}>
+          <Button className="primary" disabled={busy}>
             {busy ? 'Please wait…' : challenge ? 'Sign in' : 'Email me a code'}
-          </button>
+          </Button>
         </form>
         {challenge && (
           <div className="auth-secondary">
-            <button disabled={busy || cooldown > 0} onClick={onResend}>
+            <Button disabled={busy || cooldown > 0} onClick={onResend}>
               {cooldown ? `Resend in ${cooldown}s` : 'Send another code'}
-            </button>
-            <button disabled={busy} onClick={onChangeEmail}>
+            </Button>
+            <Button disabled={busy} onClick={onChangeEmail}>
               Use another email
-            </button>
+            </Button>
           </div>
         )}
-        <button className="guest-link" disabled={busy} onClick={onGuest}>
+        <Button className="guest-link" disabled={busy} onClick={onGuest}>
           Try a practice session without signing in
-        </button>
+        </Button>
       </section>
     </main>
   );

@@ -1,3 +1,4 @@
+import { Button, Input, Textarea, Settings } from '../components/ui/controls';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { api, type SavedProgram, type User } from '../programs/api';
@@ -14,6 +15,8 @@ import { format } from '../language/format';
 import { useRunner } from '../runner/use-runner';
 import { catalog as bundledCatalog } from '../problems/catalog';
 import { display } from '../language/collections';
+import { navigate, usePath, WorkspaceSwitcher } from '../workspaces';
+const EnglishWorkspace = lazy(() => import('../english/EnglishWorkspace'));
 const PublishPanel = lazy(() =>
   import('../problems/PublishPanel').then((m) => ({ default: m.PublishPanel })),
 );
@@ -55,14 +58,14 @@ function ActionIcon({
     </svg>
   );
 }
-function AccountName({ user, onChange }: { user: User; onChange: (user: User) => void }) {
+export function AccountName({ user, onChange }: { user: User; onChange: (user: User) => void }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   if (!editing)
     return (
-      <button
+      <Button
         className="account-name"
         title="Edit your name"
         onClick={() => {
@@ -72,7 +75,7 @@ function AccountName({ user, onChange }: { user: User; onChange: (user: User) =>
         }}
       >
         {user.name ?? user.email}
-      </button>
+      </Button>
     );
   return (
     <form
@@ -101,7 +104,7 @@ function AccountName({ user, onChange }: { user: User; onChange: (user: User) =>
         }
       }}
     >
-      <input
+      <Input
         autoFocus
         aria-label="Your name"
         aria-describedby={error ? 'account-name-error' : undefined}
@@ -114,12 +117,12 @@ function AccountName({ user, onChange }: { user: User; onChange: (user: User) =>
           if (e.key === 'Escape' && !busy) setEditing(false);
         }}
       />
-      <button disabled={busy || !name.trim()} type="submit">
+      <Button disabled={busy || !name.trim()} type="submit">
         {busy ? 'Saving…' : 'Save name'}
-      </button>
-      <button disabled={busy} type="button" onClick={() => setEditing(false)}>
+      </Button>
+      <Button disabled={busy} type="button" onClick={() => setEditing(false)}>
         Cancel
-      </button>
+      </Button>
       {error && (
         <p id="account-name-error" role="alert">
           {error}
@@ -128,7 +131,7 @@ function AccountName({ user, onChange }: { user: User; onChange: (user: User) =>
     </form>
   );
 }
-function Brand() {
+export function Brand() {
   return (
     <a className="brand" href="/" aria-label="PseudoStar home">
       <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">
@@ -174,9 +177,9 @@ function Credits() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button className="credits-link" onClick={() => setOpen(true)}>
+      <Button className="credits-link" onClick={() => setOpen(true)}>
         © 2026 Studio 8 Collective
-      </button>
+      </Button>
       <Modal
         open={open}
         onOpenChange={setOpen}
@@ -190,6 +193,18 @@ function Credits() {
   );
 }
 export default function App() {
+  const path = usePath();
+  const english = path === '/english' || path.startsWith('/english/');
+  const [visitedICT, setVisitedICT] = useState(!english);
+  useEffect(() => {
+    if (!english) setVisitedICT(true);
+  }, [english]);
+  useEffect(() => {
+    if (location.pathname !== '/') return;
+    try {
+      if (localStorage.getItem('pseudostar:workspace') === 'english') navigate('/english', true);
+    } catch {}
+  }, []);
   const [user, setUser] = useState<User | null>(null),
     [ready, setReady] = useState(false),
     [guest, setGuest] = useState(() => {
@@ -214,7 +229,7 @@ export default function App() {
   if (!user && !guest)
     return (
       <>
-        <header className="topbar">
+        <header className="topbar workspace-header">
           <Brand />
         </header>
         <SignIn
@@ -232,31 +247,61 @@ export default function App() {
       </>
     );
   return (
-    <Studio
-      key={user?.id ?? 'guest'}
-      user={user}
-      onUserChange={(updated) =>
-        setUser((current) => (current?.id === updated.id ? updated : current))
-      }
-      onSignIn={() => {
-        try {
-          sessionStorage.removeItem('pseudostar:guest');
-        } catch {}
-        setGuest(false);
-      }}
-      onSignOut={() => {
-        setUser(null);
-        setGuest(false);
-      }}
-    />
+    <>
+      {visitedICT && (
+        <div hidden={english}>
+          <Studio
+            key={user?.id ?? 'guest'}
+            visible={!english}
+            user={user}
+            onUserChange={(updated) =>
+              setUser((current) => (current?.id === updated.id ? updated : current))
+            }
+            onSignIn={() => {
+              try {
+                sessionStorage.removeItem('pseudostar:guest');
+              } catch {}
+              setGuest(false);
+            }}
+            onSignOut={() => {
+              setUser(null);
+              setGuest(false);
+            }}
+          />
+        </div>
+      )}
+      {english && (
+        <Suspense fallback={<p role="status">Opening English…</p>}>
+          <EnglishWorkspace
+            key={user?.id ?? 'guest'}
+            user={user}
+            onUserChange={(updated) =>
+              setUser((current) => (current?.id === updated.id ? updated : current))
+            }
+            onSignIn={() => {
+              try {
+                sessionStorage.removeItem('pseudostar:guest');
+              } catch {}
+              setGuest(false);
+            }}
+            onSignOut={() => {
+              setUser(null);
+              setGuest(false);
+            }}
+          />
+        </Suspense>
+      )}
+    </>
   );
 }
 function Studio({
+  visible,
   user,
   onUserChange,
   onSignIn,
   onSignOut,
 }: {
+  visible: boolean;
   user: User | null;
   onUserChange: (user: User) => void;
   onSignIn: () => void;
@@ -457,6 +502,9 @@ function Studio({
     checkWorker = useRef<Worker | null>(null),
     checkTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const runner = useRunner();
+  useEffect(() => {
+    if (!visible) runner.command('stop');
+  }, [visible]);
   const parsed = useMemo(() => parse(doc.draft), [doc.draft]);
   const blockDraft = useRef<{ id: string; source: string } | null>(null);
   const invalidText =
@@ -626,20 +674,34 @@ function Studio({
     : parsed.diagnostics[0].range?.line;
   return (
     <>
-      <header className="topbar">
+      <header className="topbar workspace-header">
         <Brand />
+        <WorkspaceSwitcher
+          value="ict"
+          beforeChange={() => {
+            if (status === 'Save failed' || error) {
+              setMessage(
+                'Resolve the save error or download your draft before switching workspaces.',
+              );
+              return false;
+            }
+            return true;
+          }}
+        />
         <nav aria-label="Main" inert={leaving || undefined}>
-          <button onClick={() => setLibrary(true)}>
+          <Button onClick={() => setLibrary(true)}>
             Problems <span>{catalog.length}</span>
-          </button>
-          <button onClick={() => void perform(() => listSaved())}>My programs</button>
-          <button onClick={() => setHelp(true)}>Help</button>
+          </Button>
+          <Button onClick={() => void perform(() => listSaved())}>My programs</Button>
+          <Button onClick={() => setHelp(true)}>Help</Button>
         </nav>
         <div className="account-area">
           {user ? (
             <>
-              <AccountName user={user} onChange={onUserChange} />
-              <button
+              <Settings label={user.name || user.email}>
+                <AccountName user={user} onChange={onUserChange} />
+              </Settings>
+              <Button
                 disabled={leaving}
                 onClick={() =>
                   void perform(async () => {
@@ -659,10 +721,10 @@ function Studio({
                 }
               >
                 Sign out
-              </button>
+              </Button>
             </>
           ) : (
-            <button onClick={onSignIn}>Sign in to save</button>
+            <Button onClick={onSignIn}>Sign in to save</Button>
           )}
         </div>
       </header>
@@ -676,7 +738,7 @@ function Studio({
         inert={leaving || undefined}
       >
         <aside id="problem-panel" className={`lesson ${helpOpen ? 'lesson-open' : ''}`}>
-          <button
+          <Button
             className="mobile-challenge"
             aria-expanded={helpOpen}
             onClick={() => setHelpOpen(!helpOpen)}
@@ -688,7 +750,7 @@ function Studio({
               : helpOpen
                 ? 'Hide problem details'
                 : 'Add or edit problem details'}
-          </button>
+          </Button>
           <div className="lesson-content">
             {problem ? (
               <>
@@ -725,7 +787,7 @@ function Studio({
                       </p>
                     ))
                   )}
-                  <button
+                  <Button
                     className="hint-button"
                     disabled={currentHints >= 3}
                     onClick={() => {
@@ -748,7 +810,7 @@ function Studio({
                       : currentHints
                         ? 'Explore the next hint'
                         : 'Give me a hint'}
-                  </button>
+                  </Button>
                   <span className="hint-count">{currentHints} of 3 hints explored</span>
                 </section>
               </>
@@ -757,7 +819,7 @@ function Studio({
                 <section className="problem-brief" aria-label="Your problem">
                   <h1>Your problem</h1>
                   <label>
-                    <input
+                    <Input
                       aria-label="Program name"
                       maxLength={120}
                       value={doc.title}
@@ -772,7 +834,7 @@ function Studio({
                     />
                   </label>
                   <label>
-                    <textarea
+                    <Textarea
                       aria-label="Detailed problem statement"
                       rows={3}
                       maxLength={12000}
@@ -788,351 +850,359 @@ function Studio({
           </div>
         </aside>
         <section className="editor-workbench" ref={workbench}>
-          <button
-            className="sidebar-toggle"
-            aria-label={sidebarCollapsed ? 'Show problem panel' : 'Hide problem panel'}
-            title={sidebarCollapsed ? 'Show problem panel' : 'Hide problem panel'}
-            aria-controls="problem-panel"
-            aria-expanded={!sidebarCollapsed}
-            onClick={() => setSidebarCollapsed((v) => !v)}
-          >
-            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-              <path
-                d={sidebarCollapsed ? 'm7 5 5 5-5 5' : 'm12 5-5 5 5 5'}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-          <div className="document-heading">
-            {problem && (
-              <input
-                aria-label="Program name"
-                maxLength={120}
-                value={doc.title}
-                placeholder="Name your program"
-                onChange={(e) =>
-                  setDoc((v) => ({
-                    ...v,
-                    title: e.target.value,
-                    named: Boolean(e.target.value.trim()),
-                  }))
-                }
-              />
-            )}
-            <div className="document-actions">
-              <button
-                onClick={() =>
-                  void perform(async () => {
-                    await document.fresh('', 'OUTPUT "Hello"', null);
-                    setHelpOpen(true);
-                  })
-                }
-              >
-                <ActionIcon kind="new" />
-                New
-              </button>
-              <button
-                onClick={() => {
-                  if (doc.named === false || !doc.title.trim()) {
-                    beginCopy();
-                    setNaming('save');
-                  } else void perform(document.save);
-                }}
-              >
-                <ActionIcon kind="save" />
-                Save now
-              </button>
-              {user && (
-                <button
+          <div className="editor-compose">
+            <Button
+              className="sidebar-toggle"
+              aria-label={sidebarCollapsed ? 'Show problem panel' : 'Hide problem panel'}
+              title={sidebarCollapsed ? 'Show problem panel' : 'Hide problem panel'}
+              aria-controls="problem-panel"
+              aria-expanded={!sidebarCollapsed}
+              onClick={() => setSidebarCollapsed((v) => !v)}
+            >
+              <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+                <path
+                  d={sidebarCollapsed ? 'm7 5 5 5-5 5' : 'm12 5-5 5 5 5'}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </Button>
+            <div className="document-heading">
+              {problem && (
+                <Input
+                  aria-label="Program name"
+                  maxLength={120}
+                  value={doc.title}
+                  placeholder="Name your program"
+                  onChange={(e) =>
+                    setDoc((v) => ({
+                      ...v,
+                      title: e.target.value,
+                      named: Boolean(e.target.value.trim()),
+                    }))
+                  }
+                />
+              )}
+              <div className="document-actions">
+                <Button
+                  onClick={() =>
+                    void perform(async () => {
+                      await document.fresh('', 'OUTPUT "Hello"', null);
+                      setHelpOpen(true);
+                    })
+                  }
+                >
+                  <ActionIcon kind="new" />
+                  New
+                </Button>
+                <Button
                   onClick={() => {
-                    setEditingPublication(null);
-                    setCommunity(true);
+                    if (doc.named === false || !doc.title.trim()) {
+                      beginCopy();
+                      setNaming('save');
+                    } else void perform(document.save);
                   }}
                 >
-                  <ActionIcon kind="publish" />
-                  Publish
-                </button>
-              )}
-              <button onClick={beginCopy}>
-                <ActionIcon kind="copy" />
-                Save copy
-              </button>
-              <button onClick={download}>
-                <ActionIcon kind="download" />
-                Download
-              </button>
-              <button onClick={() => void toggleFullscreen()} aria-pressed={expanded}>
-                <ActionIcon kind="expand" />
-                {expanded ? 'Exit full screen' : 'Full screen'}
-              </button>
-            </div>
-          </div>
-          <div className="editor-toolbar">
-            <div className="mode-switch" role="group" aria-label="Editor mode">
-              {(['blocks', 'text', 'split'] as const).map((value) => (
-                <button key={value} aria-pressed={mode === value} onClick={() => setMode(value)}>
-                  {{ blocks: 'Blocks', text: 'Pseudocode', split: 'Split Screen' }[value]}
-                </button>
-              ))}
-            </div>
-            <div className="edit-actions">
-              <div className="learning-toolbar">
-                <button
-                  className="learning-action"
-                  disabled={!user || !doc.draft.trim()}
-                  title={!user ? 'Sign in to use AI explanations' : undefined}
-                  onClick={() => void explainCode('program', doc.draft)}
-                >
-                  Explain Pseudocode
-                </button>
-                {problem && (
-                  <button
-                    className="learning-action solution-button"
+                  <ActionIcon kind="save" />
+                  Save now
+                </Button>
+                {user && (
+                  <Button
                     onClick={() => {
-                      setComparisonSource(doc.draft);
-                      setSolution('');
-                      setReplaceSolution(false);
-                      setSolutionError('');
-                      setSolutionOpen(true);
+                      setEditingPublication(null);
+                      setCommunity(true);
                     }}
                   >
-                    Show Solution
-                  </button>
+                    <ActionIcon kind="publish" />
+                    Publish
+                  </Button>
                 )}
+                <Button onClick={beginCopy}>
+                  <ActionIcon kind="copy" />
+                  Save copy
+                </Button>
+                <Button onClick={download}>
+                  <ActionIcon kind="download" />
+                  Download
+                </Button>
+                <Button onClick={() => void toggleFullscreen()} aria-pressed={expanded}>
+                  <ActionIcon kind="expand" />
+                  {expanded ? 'Exit full screen' : 'Full screen'}
+                </Button>
               </div>
-              <button
-                onClick={() => blocks.current?.undo()}
-                disabled={mode === 'text' || invalidText}
-              >
-                Undo
-              </button>
-              <button
-                onClick={() => blocks.current?.redo()}
-                disabled={mode === 'text' || invalidText}
-              >
-                Redo
-              </button>
-              <button onClick={() => blocks.current?.fit()} disabled={mode === 'text'}>
-                Fit
-              </button>
-              <button
-                disabled={!parsed.ok}
-                onClick={() => {
-                  if (parsed.ok) update(format(parsed.program).source);
-                }}
-              >
-                Format
-              </button>
             </div>
-          </div>
-          <div className={`editor-surfaces mode-${mode}`}>
-            <Suspense
-              fallback={
-                <div className="panel-loading" role="status">
-                  Opening editor…
+            <div className="editor-toolbar">
+              <div className="mode-switch" role="group" aria-label="Editor mode">
+                {(['blocks', 'text', 'split'] as const).map((value) => (
+                  <Button key={value} aria-pressed={mode === value} onClick={() => setMode(value)}>
+                    {{ blocks: 'Blocks', text: 'Pseudocode', split: 'Split Screen' }[value]}
+                  </Button>
+                ))}
+              </div>
+              <div className="edit-actions">
+                <div className="learning-toolbar">
+                  <Button
+                    className="learning-action"
+                    disabled={!user || !doc.draft.trim()}
+                    title={!user ? 'Sign in to use AI explanations' : undefined}
+                    onClick={() => void explainCode('program', doc.draft)}
+                  >
+                    Explain Pseudocode
+                  </Button>
+                  {problem && (
+                    <Button
+                      className="learning-action solution-button"
+                      onClick={() => {
+                        setComparisonSource(doc.draft);
+                        setSolution('');
+                        setReplaceSolution(false);
+                        setSolutionError('');
+                        setSolutionOpen(true);
+                      }}
+                    >
+                      Show Solution
+                    </Button>
+                  )}
                 </div>
-              }
-            >
-              <div className="block-surface" hidden={mode === 'text'}>
-                <BlockEditor
-                  key={doc.localId}
-                  ref={blocks}
-                  source={doc.draft}
-                  onChange={(source) => {
-                    update(source);
-                    blockDraft.current = { id: doc.localId, source };
-                  }}
-                  invalid={invalidText}
-                  onExplain={
-                    user
-                      ? (block, source) => {
-                          void explainCode('block', source, block);
-                        }
-                      : undefined
-                  }
-                  lastValidSource={doc.lastValidSource}
-                  activeLine={active ? runner.line : undefined}
-                  diagnosticLine={diagnosticLine}
-                />
-              </div>
-              <div className="text-surface" hidden={mode === 'blocks'}>
-                <TextEditor
-                  key={doc.localId}
-                  source={doc.draft}
-                  onChange={update}
-                  activeLine={active ? runner.line : undefined}
-                  diagnosticLine={diagnosticLine}
-                />
-              </div>
-            </Suspense>
-          </div>
-          {!parsed.ok && (
-            <div className="diagnostic" role="alert">
-              <strong>
-                Line {parsed.diagnostics[0].range?.line ?? 1}: {parsed.diagnostics[0].message}
-              </strong>
-              <span>{parsed.diagnostics[0].nextAction}</span>
-              {lastValid.current.source && (
-                <button onClick={() => update(lastValid.current.source)}>
-                  Restore last valid program
-                </button>
-              )}
-            </div>
-          )}
-          <div className="run-toolbar">
-            <button
-              className="primary"
-              disabled={!parsed.ok || active}
-              onClick={() => runner.start(doc.draft)}
-            >
-              Run program
-            </button>
-            {runner.status === 'running' ? (
-              <button onClick={() => runner.command('pause')}>Pause</button>
-            ) : (
-              <button
-                disabled={runner.status !== 'paused'}
-                onClick={() => runner.command('resume')}
-              >
-                Resume
-              </button>
-            )}
-            <button
-              disabled={!parsed.ok || runner.status === 'running' || runner.status === 'input'}
-              onClick={() =>
-                runner.status === 'paused' ? runner.command('step') : runner.start(doc.draft, true)
-              }
-            >
-              Step
-            </button>
-            <button disabled={!active} onClick={() => runner.command('stop')}>
-              Stop
-            </button>
-            <button disabled={active} onClick={runner.reset}>
-              Reset
-            </button>
-            <button
-              className="check-button"
-              disabled={!problem || !parsed.ok || checking || active}
-              onClick={check}
-            >
-              {checking ? 'Checking…' : 'Check my logic'}
-            </button>
-          </div>
-          <div className="execution-panels">
-            <section className="output-panel">
-              <div className="panel-heading">
-                <h2>Output</h2>
-                <span role="status">
-                  {runner.status === 'idle'
-                    ? 'Ready to try'
-                    : runner.status[0].toUpperCase() + runner.status.slice(1)}
-                </span>
-              </div>
-              <div className="output-lines" aria-label="Program output" role="log">
-                {runner.output.length ? (
-                  runner.output.map((line, i) => <pre key={i}>{line}</pre>)
-                ) : (
-                  <p>Run your program to see what happens.</p>
-                )}
-              </div>
-              {runner.status === 'input' && (
-                <form
-                  className="runner-input"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    runner.command('input', input);
-                    setInput('');
+                <Button
+                  onClick={() => blocks.current?.undo()}
+                  disabled={mode === 'text' || invalidText}
+                >
+                  Undo
+                </Button>
+                <Button
+                  onClick={() => blocks.current?.redo()}
+                  disabled={mode === 'text' || invalidText}
+                >
+                  Redo
+                </Button>
+                <Button onClick={() => blocks.current?.fit()} disabled={mode === 'text'}>
+                  Fit
+                </Button>
+                <Button
+                  disabled={!parsed.ok}
+                  onClick={() => {
+                    if (parsed.ok) update(format(parsed.program).source);
                   }}
                 >
-                  <label>
-                    Input for {runner.inputName}
-                    <input
-                      aria-label={`Input for ${runner.inputName}`}
-                      value={input}
-                      maxLength={10000}
-                      onChange={(e) => setInput(e.target.value)}
-                      autoFocus
-                    />
-                  </label>
-                  <button type="submit">Submit input</button>
-                </form>
-              )}
-              {runner.diagnostic && (
-                <div className="diagnostic" role="alert">
-                  <strong>
-                    {runner.diagnostic.range?.line ? `Line ${runner.diagnostic.range.line}: ` : ''}
-                    {runner.diagnostic.message}
-                  </strong>
-                  <span>{runner.diagnostic.nextAction}</span>
-                </div>
-              )}
-            </section>
-            <section className="variables-panel">
-              <h2>Variables</h2>
-              {Object.keys(runner.variables).length ? (
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(runner.variables).map(([name, value]) => (
-                      <tr key={name}>
-                        <td>
-                          <code>{name}</code>
-                        </td>
-                        <td>
-                          {typeof value === 'object' ? display(value) : JSON.stringify(value)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p>Values appear here as your program runs.</p>
-              )}
-            </section>
-          </div>
-          {results && (
-            <section className="check-results" aria-label="Challenge results">
-              <h2>
-                {results.every((r) => r.passed)
-                  ? 'Your program passed these checks.'
-                  : 'A useful clue for your next try.'}
-              </h2>
-              <p>
-                {results.filter((r) => r.passed).length} of {results.length} checks passed
-              </p>
-              {results.map((r, i) => (
-                <details key={i} open={!r.passed}>
-                  <summary>
-                    Check {i + 1}: {r.passed ? 'Passed' : 'Try again'} · Input{' '}
-                    {r.inputs.join(', ') || 'none'}
-                  </summary>
-                  {r.error && <p>{r.error}</p>}
-                  <div>
-                    <p>
-                      <strong>Expected</strong>
-                      <br />
-                      {r.expected.join(' · ')}
-                    </p>
-                    <p>
-                      <strong>Your result</strong>
-                      <br />
-                      {r.actual.join(' · ') || 'No output'}
-                    </p>
+                  Format
+                </Button>
+              </div>
+            </div>
+            <div className={`editor-surfaces mode-${mode}`}>
+              <Suspense
+                fallback={
+                  <div className="panel-loading" role="status">
+                    Opening editor…
                   </div>
-                </details>
-              ))}
-            </section>
-          )}
+                }
+              >
+                <div className="block-surface" hidden={mode === 'text'}>
+                  <BlockEditor
+                    key={doc.localId}
+                    ref={blocks}
+                    source={doc.draft}
+                    onChange={(source) => {
+                      update(source);
+                      blockDraft.current = { id: doc.localId, source };
+                    }}
+                    invalid={invalidText}
+                    onExplain={
+                      user
+                        ? (block, source) => {
+                            void explainCode('block', source, block);
+                          }
+                        : undefined
+                    }
+                    lastValidSource={doc.lastValidSource}
+                    activeLine={active ? runner.line : undefined}
+                    diagnosticLine={diagnosticLine}
+                  />
+                </div>
+                <div className="text-surface" hidden={mode === 'blocks'}>
+                  <TextEditor
+                    key={doc.localId}
+                    source={doc.draft}
+                    onChange={update}
+                    activeLine={active ? runner.line : undefined}
+                    diagnosticLine={diagnosticLine}
+                  />
+                </div>
+              </Suspense>
+            </div>
+            {!parsed.ok && (
+              <div className="diagnostic" role="alert">
+                <strong>
+                  Line {parsed.diagnostics[0].range?.line ?? 1}: {parsed.diagnostics[0].message}
+                </strong>
+                <span>{parsed.diagnostics[0].nextAction}</span>
+                {lastValid.current.source && (
+                  <Button onClick={() => update(lastValid.current.source)}>
+                    Restore last valid program
+                  </Button>
+                )}
+              </div>
+            )}
+            <div className="run-toolbar">
+              <Button
+                className="primary"
+                disabled={!parsed.ok || active}
+                onClick={() => runner.start(doc.draft)}
+              >
+                Run program
+              </Button>
+              {runner.status === 'running' ? (
+                <Button onClick={() => runner.command('pause')}>Pause</Button>
+              ) : (
+                <Button
+                  disabled={runner.status !== 'paused'}
+                  onClick={() => runner.command('resume')}
+                >
+                  Resume
+                </Button>
+              )}
+              <Button
+                disabled={!parsed.ok || runner.status === 'running' || runner.status === 'input'}
+                onClick={() =>
+                  runner.status === 'paused'
+                    ? runner.command('step')
+                    : runner.start(doc.draft, true)
+                }
+              >
+                Step
+              </Button>
+              <Button disabled={!active} onClick={() => runner.command('stop')}>
+                Stop
+              </Button>
+              <Button disabled={active} onClick={runner.reset}>
+                Reset
+              </Button>
+              <Button
+                className="check-button"
+                disabled={!problem || !parsed.ok || checking || active}
+                onClick={check}
+              >
+                {checking ? 'Checking…' : 'Check my logic'}
+              </Button>
+            </div>
+          </div>
+          <aside className="studio-results" aria-label="Results">
+            <div className="execution-panels">
+              <section className="output-panel">
+                <div className="panel-heading">
+                  <h2>Output</h2>
+                  <span role="status">
+                    {runner.status === 'idle'
+                      ? 'Ready to try'
+                      : runner.status[0].toUpperCase() + runner.status.slice(1)}
+                  </span>
+                </div>
+                <div className="output-lines" aria-label="Program output" role="log">
+                  {runner.output.length ? (
+                    runner.output.map((line, i) => <pre key={i}>{line}</pre>)
+                  ) : (
+                    <p>Run your program to see what happens.</p>
+                  )}
+                </div>
+                {runner.status === 'input' && (
+                  <form
+                    className="runner-input"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      runner.command('input', input);
+                      setInput('');
+                    }}
+                  >
+                    <label>
+                      Input for {runner.inputName}
+                      <Input
+                        aria-label={`Input for ${runner.inputName}`}
+                        value={input}
+                        maxLength={10000}
+                        onChange={(e) => setInput(e.target.value)}
+                        autoFocus
+                      />
+                    </label>
+                    <Button type="submit">Submit input</Button>
+                  </form>
+                )}
+                {runner.diagnostic && (
+                  <div className="diagnostic" role="alert">
+                    <strong>
+                      {runner.diagnostic.range?.line
+                        ? `Line ${runner.diagnostic.range.line}: `
+                        : ''}
+                      {runner.diagnostic.message}
+                    </strong>
+                    <span>{runner.diagnostic.nextAction}</span>
+                  </div>
+                )}
+              </section>
+              <section className="variables-panel">
+                <h2>Variables</h2>
+                {Object.keys(runner.variables).length ? (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(runner.variables).map(([name, value]) => (
+                        <tr key={name}>
+                          <td>
+                            <code>{name}</code>
+                          </td>
+                          <td>
+                            {typeof value === 'object' ? display(value) : JSON.stringify(value)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>Values appear here as your program runs.</p>
+                )}
+              </section>
+            </div>
+            {results && (
+              <section className="check-results" aria-label="Challenge results">
+                <h2>
+                  {results.every((r) => r.passed)
+                    ? 'Your program passed these checks.'
+                    : 'A useful clue for your next try.'}
+                </h2>
+                <p>
+                  {results.filter((r) => r.passed).length} of {results.length} checks passed
+                </p>
+                {results.map((r, i) => (
+                  <details key={i} open={!r.passed}>
+                    <summary>
+                      Check {i + 1}: {r.passed ? 'Passed' : 'Try again'} · Input{' '}
+                      {r.inputs.join(', ') || 'none'}
+                    </summary>
+                    {r.error && <p>{r.error}</p>}
+                    <div>
+                      <p>
+                        <strong>Expected</strong>
+                        <br />
+                        {r.expected.join(' · ')}
+                      </p>
+                      <p>
+                        <strong>Your result</strong>
+                        <br />
+                        {r.actual.join(' · ') || 'No output'}
+                      </p>
+                    </div>
+                  </details>
+                ))}
+              </section>
+            )}
+          </aside>
           <footer className="workspace-status">
             <Credits />
             <span role="status">{status}</span>
@@ -1143,8 +1213,8 @@ function Studio({
               {message || error}
               {status === 'Conflict' && (
                 <>
-                  <button onClick={beginCopy}>Keep my changes as a copy</button>
-                  <button
+                  <Button onClick={beginCopy}>Keep my changes as a copy</Button>
+                  <Button
                     onClick={() =>
                       void perform(async () => {
                         if (doc.id) {
@@ -1157,18 +1227,18 @@ function Studio({
                     }
                   >
                     Compare cloud version
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
           )}
         </section>
       </main>
-      <Modal open={library} onOpenChange={setLibrary} title="Choose your next challenge">
+      <Modal open={visible && library} onOpenChange={setLibrary} title="Choose your next challenge">
         {sharedError && (
           <p role="alert">
             {sharedError}{' '}
-            <button
+            <Button
               className="learning-action"
               onClick={() =>
                 void refreshShared().catch(() =>
@@ -1177,7 +1247,7 @@ function Studio({
               }
             >
               Retry shared problems
-            </button>
+            </Button>
           </p>
         )}
         <div className="library-filters">
@@ -1203,7 +1273,7 @@ function Studio({
             .filter((p) => difficulty === 'All' || p.difficulty === difficulty)
             .map((p) => (
               <div key={p.id} className="library-entry" role="group" aria-label={p.title}>
-                <button className="problem-row" onClick={() => void perform(() => choose(p))}>
+                <Button className="problem-row" onClick={() => void perform(() => choose(p))}>
                   <span className={'level level-' + p.difficulty.toLowerCase()}>
                     {p.difficulty}
                   </span>
@@ -1219,9 +1289,9 @@ function Studio({
                       ? 'Passed · practise again'
                       : 'Start'}
                   </span>
-                </button>
+                </Button>
                 {p.canEdit && user && (
-                  <button
+                  <Button
                     className="library-author-action"
                     aria-label={`Edit ${p.title}`}
                     onClick={() =>
@@ -1240,7 +1310,7 @@ function Studio({
                     }
                   >
                     Edit / delete
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}
@@ -1248,7 +1318,7 @@ function Studio({
       </Modal>
       {user && (
         <Modal
-          open={community}
+          open={visible && community}
           onOpenChange={setCommunity}
           title={editingPublication ? 'Edit your problem' : 'Publish your program'}
         >
@@ -1275,14 +1345,14 @@ function Studio({
           </Suspense>
         </Modal>
       )}
-      <Modal open={savedOpen} onOpenChange={setSavedOpen} title="My programs">
+      <Modal open={visible && savedOpen} onOpenChange={setSavedOpen} title="My programs">
         {!user && (
           <p className="local-library-note">
             Saved in this browser. Sign in to keep programs online across devices.
           </p>
         )}
         {message && <p role="alert">{message}</p>}
-        <input
+        <Input
           className="saved-search"
           aria-label="Search saved programs"
           placeholder="Search your programs"
@@ -1290,7 +1360,7 @@ function Studio({
           onChange={(e) => setSavedQuery(e.target.value)}
         />
         <div className="saved-heading">
-          <button
+          <Button
             onClick={() =>
               void perform(async () => {
                 setTrash(!trash);
@@ -1299,7 +1369,7 @@ function Studio({
             }
           >
             {trash ? 'Show active programs' : 'Recently deleted'}
-          </button>
+          </Button>
           <span>Deleted programs can be restored for 30 days.</span>
         </div>
         {!saved.filter((p) => p.title.toLowerCase().includes(savedQuery.toLowerCase())).length ? (
@@ -1315,7 +1385,7 @@ function Studio({
             .filter((p) => p.title.toLowerCase().includes(savedQuery.toLowerCase()))
             .map((p) => (
               <div className="saved-row" key={p.id}>
-                <button
+                <Button
                   className="saved-title"
                   disabled={trash}
                   onClick={() =>
@@ -1332,9 +1402,9 @@ function Studio({
                   }
                 >
                   {p.title}
-                </button>
+                </Button>
                 <span>{new Date(p.updatedAt).toLocaleDateString()}</span>
-                <button
+                <Button
                   onClick={() =>
                     void perform(async () => {
                       if (user)
@@ -1353,13 +1423,13 @@ function Studio({
                   }
                 >
                   {trash ? 'Restore' : 'Delete'}
-                </button>
+                </Button>
               </div>
             ))
         )}
       </Modal>
       <Modal
-        open={!!conflictCloud}
+        open={visible && !!conflictCloud}
         onOpenChange={(open) => {
           if (!open) setConflictCloud(null);
         }}
@@ -1376,7 +1446,7 @@ function Studio({
             <pre>{conflictCloud?.draft}</pre>
           </section>
         </div>
-        <button
+        <Button
           className="primary"
           onClick={() => {
             beginCopy();
@@ -1384,10 +1454,10 @@ function Studio({
           }}
         >
           Keep my changes as a copy
-        </button>
+        </Button>
       </Modal>
       <Modal
-        open={naming !== null}
+        open={visible && naming !== null}
         onOpenChange={(open) => {
           if (!open && !nameBusy) setNaming(null);
         }}
@@ -1402,7 +1472,7 @@ function Studio({
           }}
         >
           <label htmlFor="copy-name">Program name</label>
-          <input
+          <Input
             id="copy-name"
             autoFocus
             aria-describedby={
@@ -1425,17 +1495,17 @@ function Studio({
             </p>
           )}
           <div className="naming-actions">
-            <button type="button" disabled={nameBusy} onClick={() => setNaming(null)}>
+            <Button type="button" disabled={nameBusy} onClick={() => setNaming(null)}>
               Cancel
-            </button>
-            <button className="primary" type="submit" disabled={nameBusy}>
+            </Button>
+            <Button className="primary" type="submit" disabled={nameBusy}>
               {nameBusy ? 'Saving…' : 'Save program'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>
       <Modal
-        open={solutionOpen}
+        open={visible && solutionOpen}
         onOpenChange={setSolutionOpen}
         className={`learning-modal ${solution ? 'comparison-modal' : ''}`}
         title={solution ? 'Compare your approach' : 'Do you really want to see the solution?'}
@@ -1452,10 +1522,10 @@ function Studio({
                     Your current edits will be replaced. Saved programs will auto-save this change.
                   </p>
                   <div className="learning-actions">
-                    <button className="learning-action" onClick={() => setReplaceSolution(false)}>
+                    <Button className="learning-action" onClick={() => setReplaceSolution(false)}>
                       Keep my program
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       className="learning-action"
                       onClick={() => {
                         update(solution);
@@ -1464,13 +1534,13 @@ function Studio({
                       }}
                     >
                       Replace program
-                    </button>
+                    </Button>
                   </div>
                 </>
               ) : (
-                <button className="learning-action" onClick={() => setReplaceSolution(true)}>
+                <Button className="learning-action" onClick={() => setReplaceSolution(true)}>
                   Use solution in my program
-                </button>
+                </Button>
               )}
             </div>
           </>
@@ -1478,14 +1548,14 @@ function Studio({
           <>
             <p>You can return to your program and try another idea first.</p>
             <div className="learning-actions">
-              <button
+              <Button
                 className="learning-action"
                 disabled={solutionBusy}
                 onClick={() => setSolutionOpen(false)}
               >
                 Keep thinking
-              </button>
-              <button
+              </Button>
+              <Button
                 className="learning-action"
                 disabled={solutionBusy}
                 onClick={async () => {
@@ -1510,14 +1580,14 @@ function Studio({
                 }}
               >
                 {solutionBusy ? 'Opening solution…' : 'Yes, show the solution'}
-              </button>
+              </Button>
             </div>
             {solutionError && <p role="alert">{solutionError}</p>}
           </>
         )}
       </Modal>
       <Modal
-        open={explanation !== null}
+        open={visible && explanation !== null}
         onOpenChange={(open) => {
           if (!open) {
             explanationRequest.current?.abort();
@@ -1537,7 +1607,7 @@ function Studio({
             ) : explanation.error ? (
               <>
                 <p role="alert">{explanation.error}</p>
-                <button
+                <Button
                   className="learning-action"
                   onClick={() =>
                     void explainCode(
@@ -1549,7 +1619,7 @@ function Studio({
                   }
                 >
                   Try again
-                </button>
+                </Button>
               </>
             ) : (
               <div className="explanation-copy">
@@ -1587,7 +1657,7 @@ function Studio({
           </>
         )}
       </Modal>
-      <Modal open={help} onOpenChange={setHelp} title="A little help with your logic">
+      <Modal open={visible && help} onOpenChange={setHelp} title="A little help with your logic">
         <div className="help-copy">
           <h3>Build in blocks or write in text</h3>
           <p>

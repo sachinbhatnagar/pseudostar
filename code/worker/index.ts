@@ -7,6 +7,7 @@ import { ApiError, fail, body, str } from './validation';
 import { internalSolutions } from '../internal/solutions';
 import { authorProblem, publish, sharedList, visibleCandidate } from './shared-problems';
 import { explain } from './explanations';
+import { english } from './english';
 async function api(request: Request, env: Env) {
   const url = new URL(request.url);
   if (!['GET', 'HEAD'].includes(request.method)) {
@@ -47,6 +48,10 @@ async function api(request: Request, env: Env) {
       : imported?.solution;
     if (!source) fail(404, 'NOT_FOUND', 'Solution not found.');
     return Response.json({ source, ...(imported ? { explanation: imported.explanation } : {}) });
+  }
+  if (url.pathname.startsWith('/api/english/')) {
+    if (!user) fail(401, 'SIGN_IN_REQUIRED', 'Sign in to continue.');
+    return english(request, env, user.id);
   }
   const profileRoute = url.pathname === '/api/profile' && request.method === 'PATCH';
   const isLogout = url.pathname === '/api/auth/logout' && request.method === 'POST';

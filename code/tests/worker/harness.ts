@@ -6,6 +6,7 @@ export async function harness(
   options: {
     groq?: boolean;
     generations?: unknown[];
+    english?: (context: Record<string, unknown>) => unknown;
   } = {},
 ) {
   const built = await build({
@@ -74,6 +75,20 @@ export async function harness(
           if (groqMode === 'failure')
             return new Response('private provider error', { status: 429 });
           const context = JSON.parse((payload.messages as { content: string }[])[1].content);
+          if (options.english && String(context.kind).startsWith('english-'))
+            return Response.json({
+              choices: [
+                {
+                  finish_reason: groqMode === 'truncated' ? 'length' : 'stop',
+                  message: {
+                    content:
+                      groqMode === 'malformed'
+                        ? 'not json'
+                        : JSON.stringify(options.english(context)),
+                  },
+                },
+              ],
+            });
           return Response.json({
             choices: [
               {
