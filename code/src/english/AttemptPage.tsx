@@ -582,10 +582,6 @@ export function AttemptPage({
             </p>
           ) : (
             <>
-              <h3>Assessment and revision history</h3>
-              <p>
-                Each submission stays unchanged. Edit your response above to make a new version.
-              </p>
               {attempt.revisions.map((revision, index) => (
                 <details
                   className="en-revision"
@@ -593,10 +589,15 @@ export function AttemptPage({
                   open={index === attempt.revisions.length - 1}
                 >
                   <summary>
-                    Version {index + 1} · {new Date(revision.submittedAt).toLocaleString()} ·{' '}
-                    {revision.assisted ? 'Coached' : 'Independent'}
+                    Version {index + 1} ·{' '}
+                    {new Date(revision.submittedAt).toLocaleDateString(undefined, {
+                      day: 'numeric',
+                      month: 'short',
+                    })}{' '}
+                    · {revision.assisted ? 'Coached' : 'Independent'}
                     {revision.overTime ? ' · Over time' : ''}
-                    {assessmentScore(revision.feedback) &&
+                    {index < attempt.revisions.length - 1 &&
+                      assessmentScore(revision.feedback) &&
                       ` · ${assessmentScore(revision.feedback)!.percent}/100`}
                   </summary>
                   {revision.feedback ? (
@@ -612,8 +613,8 @@ export function AttemptPage({
                           : 'Saved without AI evaluation.')}
                     </p>
                   )}
-                  <div className="en-submitted">
-                    <h3>Your submitted response</h3>
+                  <details className="en-submitted">
+                    <summary>View submitted response</summary>
                     {Object.entries(revision.response).map(([field, value]) => (
                       <div key={field}>
                         <strong>
@@ -628,15 +629,11 @@ export function AttemptPage({
                         <p>{revision.plan}</p>
                       </details>
                     )}
-                  </div>
+                  </details>
                 </details>
               ))}
               <div className="en-followup">
-                <h2>Try it in a new context</h2>
-                <p>
-                  After revising, check the skill on a different task without hints. Completion and
-                  improvement are recorded separately.
-                </p>
+                <h2>Keep practising</h2>
                 <div className="en-actions">
                   {next && (
                     <Button
@@ -670,70 +667,89 @@ function FeedbackView({ feedback, previous }: { feedback: Feedback; previous: Fe
   return (
     <div className="en-feedback">
       <section className="en-assessment-result" aria-label="Assessment score">
-        <h3>Assessment score</h3>
         {score ? (
           <>
             <p className="en-assessment-total">
               <strong>{score.percent}</strong>
               <span>/100</span>
             </p>
-            <p>
-              {score.total} of {score.maximum} criterion marks earned.
-            </p>
             {earlier && (
-              <p>
+              <p className="en-score-change">
                 {score.percent - earlier.percent > 0 ? '+' : ''}
-                {score.percent - earlier.percent} percentage points from the previous scored version
-                ({earlier.percent}/100).
+                {score.percent - earlier.percent} percentage points
+                <span>Previous: {earlier.percent}/100</span>
               </p>
             )}
           </>
         ) : (
-          <p>This earlier assessment has feedback only. Submit a new version to receive a score.</p>
+          <p>Feedback only · submit a revision to receive a score.</p>
         )}
       </section>
-      <h3>What is working</h3>
-      <ul>
-        {feedback.strengths.map((s, i) => (
-          <li key={i}>{s}</li>
-        ))}
-      </ul>
-      {feedback.corrections.length > 0 && (
-        <>
-          <h3>What to improve</h3>
-          {feedback.corrections.map((c, i) => (
-            <div className="en-correction" key={i}>
-              <blockquote>{c.quote}</blockquote>
-              <p>{c.explanation}</p>
-              <p>
-                <strong>Try:</strong> {c.suggestion}
-              </p>
-            </div>
-          ))}
-        </>
-      )}
-      <h3>Your skill evidence</h3>
-      <div className="en-ratings">
-        {feedback.ratings.map((r) => (
-          <div key={r.skill}>
-            <strong>{skillNames[r.skill]}</strong>
-            <span>
-              {r.score === undefined ? r.rating : `${r.score}/4 · ${scoreDescriptors[r.score]}`}
-            </span>
-            <p>{r.explanation}</p>
-            {r.evidence && <blockquote>{r.evidence}</blockquote>}
-          </div>
-        ))}
-      </div>
-      <div className="en-coach-note">
-        <h3>One next step</h3>
+      <section className="en-next-step">
+        <h3>Next revision</h3>
         <p>{feedback.nextStep}</p>
-        {feedback.improvement.explanation && (
-          <p>
-            <strong>Revision guidance:</strong> {feedback.improvement.explanation}
-          </p>
-        )}
-      </div>
+      </section>
+      {previous && feedback.improvement.meaningful && feedback.improvement.explanation && (
+        <section>
+          <h3>What improved</h3>
+          <p>{feedback.improvement.explanation}</p>
+        </section>
+      )}
+      {feedback.corrections.length > 0 && (
+        <section>
+          <h3>Corrections</h3>
+          <ol className="en-corrections">
+            {feedback.corrections.map((correction, index) => (
+              <li key={index} className="en-correction">
+                <dl>
+                  <dt>You wrote</dt>
+                  <dd>{correction.quote}</dd>
+                  <dt>Suggested edit</dt>
+                  <dd>{correction.suggestion}</dd>
+                </dl>
+                <p>{correction.explanation}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {feedback.strengths.length > 0 && (
+        <section>
+          <h3>What is working</h3>
+          <ul className="en-strengths">
+            {feedback.strengths.map((strength, index) => (
+              <li key={index}>{strength}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <section>
+        <h3>Score breakdown</h3>
+        <div className="en-ratings">
+          {feedback.ratings.map((rating) => (
+            <details key={rating.skill}>
+              <summary>
+                <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="m6 4 4 4-4 4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span>{skillNames[rating.skill]}</span>
+                <strong>{rating.score === undefined ? rating.rating : `${rating.score}/4`}</strong>
+              </summary>
+              <p className="en-rating-label">
+                {rating.score === undefined ? rating.rating : scoreDescriptors[rating.score]}
+              </p>
+              <p>{rating.explanation}</p>
+              {rating.evidence && <blockquote>{rating.evidence}</blockquote>}
+            </details>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

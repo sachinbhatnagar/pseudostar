@@ -107,22 +107,25 @@ export function AccountName({ user, onChange }: { user: User; onChange: (user: U
       <Input
         autoFocus
         aria-label="Your name"
+        title="Enter to save; Escape to cancel"
+        enterKeyHint="done"
         aria-describedby={error ? 'account-name-error' : undefined}
         aria-invalid={!!error}
         maxLength={100}
         value={name}
-        disabled={busy}
+        readOnly={busy}
+        aria-busy={busy}
+        onFocus={(e) => e.target.select()}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Escape' && !busy) setEditing(false);
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            if (!busy) setEditing(false);
+          }
+          if (e.key === 'Enter' && e.nativeEvent.isComposing) e.preventDefault();
         }}
       />
-      <Button disabled={busy || !name.trim()} type="submit">
-        {busy ? 'Saving…' : 'Save name'}
-      </Button>
-      <Button disabled={busy} type="button" onClick={() => setEditing(false)}>
-        Cancel
-      </Button>
+      {busy && <span role="status">Saving…</span>}
       {error && (
         <p id="account-name-error" role="alert">
           {error}

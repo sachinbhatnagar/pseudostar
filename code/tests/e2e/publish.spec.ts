@@ -37,9 +37,10 @@ test('publishes the current program after statement rewriting and checks', async
     await page.getByRole('button', { name: /user settings/i }).click();
     await page.getByRole('button', { name: 'learner@example.com', exact: true }).click();
     await page.getByRole('textbox', { name: 'Your name' }).fill('   ');
-    await expect(page.getByRole('button', { name: 'Save name', exact: true })).toBeDisabled();
+    await page.getByRole('textbox', { name: 'Your name' }).press('Enter');
+    await expect(page.getByRole('alert')).toHaveText('Enter a name.');
     await page.getByRole('textbox', { name: 'Your name' }).fill('Alex Learner');
-    await page.getByRole('button', { name: 'Save name', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Your name' }).press('Enter');
     await expect(page.getByRole('button', { name: 'Alex Learner', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /user settings/i })).toHaveText('Alex Learner');
     await page.reload();

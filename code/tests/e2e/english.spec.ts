@@ -55,7 +55,17 @@ test('guest revisions survive grade changes, refresh and history navigation', as
   await expect(response).toHaveValue(revised);
   await page.getByRole('button', { name: /user settings/i }).click();
   await expect(page.getByRole('combobox', { name: 'Your grade' })).toHaveText('10');
-  await page.locator('.en-revision').first().locator('summary').click();
+  await page.locator('.en-revision').first().locator(':scope > summary').click();
+  await page
+    .locator('.en-revision')
+    .first()
+    .getByText('View submitted response', { exact: true })
+    .click();
+  await page
+    .locator('.en-revision')
+    .last()
+    .getByText('View submitted response', { exact: true })
+    .click();
   await expect(
     page.locator('.en-revision').first().getByText(first, { exact: true }),
   ).toBeVisible();
@@ -258,6 +268,16 @@ test('mock account feedback and fresh work update history and monthly points', a
   await page.getByRole('button', { name: 'Submit for assessment', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'What is working' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Assessment score' })).toContainText('75');
+  const breakdown = page.locator('.en-ratings details').first();
+  await expect(
+    breakdown.getByText('The letter addresses a new member directly.'),
+  ).not.toBeVisible();
+  await breakdown.locator('summary').focus();
+  await page.keyboard.press('Enter');
+  await expect(breakdown.getByText('The letter addresses a new member directly.')).toBeVisible();
+  await expect(page.locator('.en-submitted')).not.toHaveAttribute('open', '');
+  await expect(page.getByRole('heading', { name: 'Next revision' })).toBeVisible();
+
   await expect(page.getByRole('button', { name: 'Download my response' })).toHaveCount(0);
   await expect(page.getByText('Worked example · different material', { exact: true })).toHaveCount(
     0,
@@ -401,7 +421,7 @@ test('a delayed English name response cannot restore a signed-out account', asyn
   await page.getByRole('button', { name: /user settings/i }).click();
   await page.getByRole('button', { name: 'alice@example.test', exact: true }).click();
   await page.getByRole('textbox', { name: 'Your name' }).fill('Alice');
-  await page.getByRole('button', { name: 'Save name' }).click();
+  await page.getByRole('textbox', { name: 'Your name' }).press('Enter');
   await expect.poll(() => savingName).toBe(true);
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   const response = page.waitForResponse((r) => r.url().endsWith('/api/profile'));

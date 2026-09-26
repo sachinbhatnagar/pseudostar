@@ -55,7 +55,6 @@ export function WorkspaceSwitcher({
 }) {
   return (
     <label className="workspace-switcher">
-      Workspace{' '}
       <SelectControl
         label="Workspace"
         value={value}
