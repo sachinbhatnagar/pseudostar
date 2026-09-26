@@ -85,6 +85,40 @@ async function submit(cookie: string, attempt: Attempt) {
   return ((await result.json()) as { attempt: Attempt }).attempt;
 }
 describe('English account storage and coaching', () => {
+  it('assesses a legacy surgery attempt without an explanation field', async () => {
+    h = await harness({ english: fixture });
+    const { cookie } = await h.login();
+    const attempt = await start(cookie);
+    attempt.exercise.fields.push({
+      id: 'reason',
+      label: 'Explain a correction',
+      hint: 'Explain one change.',
+    });
+    await h.db
+      .prepare('UPDATE english_attempts SET data=? WHERE id=?')
+      .bind(JSON.stringify(attempt), attempt.id)
+      .run();
+    const saved = await h.request(
+      `/api/english/attempts/${attempt.id}`,
+      'PUT',
+      {
+        expectedVersion: attempt.version,
+        response: {
+          response:
+            'The bus was late. Mira checked her watch. Her friends were waiting by the gate.',
+        },
+        plan: '',
+        stage: 'write',
+        startedAt: null,
+        assisted: false,
+      },
+      cookie,
+    );
+    expect(saved.status).toBe(200);
+    const result = await submit(cookie, ((await saved.json()) as { attempt: Attempt }).attempt);
+    expect(result.revisions[0].error).toBeNull();
+    expect(assessmentScore(result.revisions[0].feedback)?.percent).toBe(75);
+  });
   it('starts a fresh independent follow-up without copying coaching or awarding revision points', async () => {
     h = await harness({ english: fixture });
     const { cookie } = await h.login();

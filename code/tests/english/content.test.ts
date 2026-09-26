@@ -1,9 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { exercises } from '../../src/english/content';
 import { curriculum, curriculumBasis } from '../../src/english/curriculum';
-import { tools, type Grade } from '../../src/english/model';
+import { practiceExercise, tools, type Grade } from '../../src/english/model';
 
 describe('original English catalogue', () => {
+  it('updates legacy surgery instructions without losing task details or saved fields', () => {
+    const legacy = {
+      ...exercises[0],
+      instructions: 'Keep the facts and explain a correction that changes clarity.',
+      fields: [
+        ...exercises[0].fields,
+        { id: 'reason', label: 'Explain a correction', hint: 'Explain.' },
+      ],
+    };
+    const current = practiceExercise(legacy);
+    expect(current.instructions).toBe('Keep the facts. Submit only the repaired passage.');
+    expect(current.fields).toHaveLength(1);
+    expect(legacy.fields).toHaveLength(2);
+    expect(practiceExercise(current)).toEqual(current);
+  });
   it('provides two distinct tasks per new-work tool in each grade', () => {
     expect(exercises).toHaveLength(42);
     for (const grade of [8, 9, 10] as Grade[]) {

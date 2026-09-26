@@ -445,3 +445,19 @@ test('shared menus support keyboard selection, Escape and mobile settings', asyn
   await expect(panel).not.toBeVisible();
   await expect(settings).toBeFocused();
 });
+
+test('Sentence Surgery needs only a repaired passage', async ({ page }) => {
+  await openGuestEnglish(page);
+  await page
+    .getByRole('link', { name: /Sentence Surgery/ })
+    .first()
+    .click();
+  await page.getByRole('link', { name: /The late bus/ }).click();
+  await page.getByRole('button', { name: 'Start this exercise', exact: true }).click();
+  await expect(page.getByText('Explain a correction', { exact: true })).toHaveCount(0);
+  await page
+    .getByRole('textbox', { name: 'Repaired passage' })
+    .fill('The bus was late. Mira checked her watch.');
+  await page.getByRole('button', { name: 'Save my response', exact: true }).click();
+  await expect(page.getByText('Saved without AI evaluation.', { exact: true })).toBeVisible();
+});

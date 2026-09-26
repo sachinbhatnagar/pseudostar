@@ -7,6 +7,7 @@ import { exercises as curated } from './content';
 import {
   tools,
   assessmentScore,
+  practiceExercise,
   skillNames,
   newAttempt,
   type Attempt,
@@ -148,9 +149,9 @@ export default function EnglishWorkspace({
       [...attempts.map((a) => a.exercise), ...generated, ...curated].map((e) => [e.id, e]),
     ).values(),
   ];
-  const selected = allExercises.filter((e) => e.grade === grade);
+  const selected = allExercises.map(practiceExercise).filter((e) => e.grade === grade);
   const id = path.split('/')[3];
-  const exercise = allExercises.find((e) => e.id === id);
+  const exercise = allExercises.map(practiceExercise).find((e) => e.id === id);
   const attempt = attempts.find((a) => a.id === id);
   async function start(ex: Exercise, mode: Attempt['mode'], parentId?: string) {
     const originPath = location.pathname;

@@ -5,6 +5,7 @@ import {
   isGrade,
   newAttempt,
   responseText,
+  practiceExercise,
   RUBRIC_VERSION,
   skillNames,
   tools,
@@ -121,7 +122,9 @@ const sameResponse = (a: Record<string, string>, b: Record<string, string>) =>
   );
 
 async function submit(env: Env, owner: string, row: Row, attempt: Attempt) {
-  if (attempt.exercise.fields.some((field) => !attempt.response[field.id]?.trim()))
+  if (
+    practiceExercise(attempt.exercise).fields.some((field) => !attempt.response[field.id]?.trim())
+  )
     fail(400, 'INCOMPLETE_RESPONSE', 'Complete each response field before submitting.');
   if (!responseText(attempt.response).trim())
     fail(400, 'EMPTY_RESPONSE', 'Write a response before submitting.');
@@ -180,12 +183,13 @@ async function submit(env: Env, owner: string, row: Row, attempt: Attempt) {
       feedbackPrompt,
       {
         kind: 'english-feedback',
-        exercise: attempt.exercise,
+        exercise: practiceExercise(attempt.exercise),
         response: revision.response,
         plan: revision.plan,
         previous: prior ?? null,
       },
-      (value): value is Feedback => validFeedback(value, attempt.exercise, revision),
+      (value): value is Feedback =>
+        validFeedback(value, practiceExercise(attempt.exercise), revision),
     );
     revision.feedback = feedback;
     revision.rubricVersion = RUBRIC_VERSION;
@@ -305,7 +309,7 @@ export async function english(request: Request, env: Env, owner: string) {
       (value): value is Exercise => validExercise(value, grade, tool, skill),
     );
     const exercise: Exercise = {
-      ...generated,
+      ...practiceExercise(generated),
       id: crypto.randomUUID(),
       version: 1,
       source: 'generated',
@@ -387,7 +391,7 @@ export async function english(request: Request, env: Env, owner: string) {
         'Give one task-specific teaching hint or separate short example, not the completed answer. Return JSON {hint:string}, maximum 1500 characters.',
         {
           kind: 'english-help',
-          exercise: attempt.exercise,
+          exercise: practiceExercise(attempt.exercise),
           response: attempt.response,
           plan: attempt.plan,
         },

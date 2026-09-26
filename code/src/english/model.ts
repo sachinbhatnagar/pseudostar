@@ -65,6 +65,29 @@ export interface Exercise {
   minutes: number;
   source: 'curated' | 'generated';
 }
+// Apply current response requirements to saved exercises without changing past revisions.
+export function practiceExercise(exercise: Exercise): Exercise {
+  if (exercise.tool !== 'sentence-surgery') return exercise;
+  return {
+    ...exercise,
+    fields: [exercise.fields.find((field) => field.id === 'response') ?? exercise.fields[0]],
+    instructions:
+      exercise.instructions
+        .replace(/\s*Submit only the repaired passage\./g, '')
+        .replace(/ and explain\b[^.!?]*[.!?]?/gi, '.')
+        .replace(/\s+Explain\b[^.!?]*[.!?]?/gi, '') + ' Submit only the repaired passage.',
+    criteria: [
+      exercise.criteria.find((criterion) => criterion.skill === 'accuracy') ?? {
+        skill: 'accuracy',
+        description: 'Use correct grammar, punctuation, sentence boundaries and clear phrasing.',
+      },
+      {
+        skill: 'understanding',
+        description: 'Preserve the original facts, meaning and intended tone.',
+      },
+    ],
+  };
+}
 export interface Feedback {
   strengths: string[];
   corrections: { quote: string; explanation: string; suggestion: string }[];
@@ -141,7 +164,7 @@ export function newAttempt(
   const now = Date.now();
   return {
     id: crypto.randomUUID(),
-    exercise,
+    exercise: practiceExercise(exercise),
     grade: exercise.grade,
     version: 1,
     response: {},

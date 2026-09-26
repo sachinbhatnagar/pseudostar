@@ -12,6 +12,7 @@ import {
 import {
   RUBRIC_VERSION,
   assessmentScore,
+  practiceExercise,
   scoreDescriptors,
   responseText,
   skillNames,
@@ -211,7 +212,7 @@ export function AttemptPage({
     );
     return () => clearTimeout(timer);
   }, [edit, user?.id, conflict]);
-  const exercise = attempt.exercise;
+  const exercise = practiceExercise(attempt.exercise);
   const last = attempt.revisions.at(-1);
   const changedSinceSubmit =
     !last ||
@@ -690,10 +691,6 @@ function FeedbackView({ feedback, previous }: { feedback: Feedback; previous: Fe
         ) : (
           <p>This earlier assessment has feedback only. Submit a new version to receive a score.</p>
         )}
-        <p className="en-small">
-          AI-assessed using PseudoStar criteria, not official Cambridge marks or a predicted exam
-          grade.
-        </p>
       </section>
       <h3>What is working</h3>
       <ul>

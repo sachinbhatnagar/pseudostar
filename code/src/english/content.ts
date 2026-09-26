@@ -1,4 +1,4 @@
-import type { Exercise, Grade, Skill } from './model';
+import { practiceExercise, type Exercise, type Grade, type Skill } from './model';
 import { curriculum } from './curriculum';
 
 type NewWorkTool = Exercise['tool'];
@@ -17,11 +17,6 @@ const responseFields: Record<NewWorkTool, Exercise['fields']> = {
       id: 'response',
       label: 'Repaired passage',
       hint: 'Keep the original meaning. There can be more than one valid repair.',
-    },
-    {
-      id: 'reason',
-      label: 'Explain a correction',
-      hint: 'Name one change and explain how it fixes the sentence.',
     },
   ],
   'sentence-upgrades': [
@@ -125,7 +120,7 @@ function task(
     target[1] = [70, 100, 120][index];
   }
   const skills = toolSkills[tool];
-  return {
+  return practiceExercise({
     id: `g${grade}-${slug}`,
     version: 1,
     grade,
@@ -147,7 +142,7 @@ function task(
         ? [10, 12, 15][index]
         : [7, 9, 11][index],
     source: 'curated',
-  };
+  });
 }
 
 // All passages and examples below are original. Examples use different material from the task.
